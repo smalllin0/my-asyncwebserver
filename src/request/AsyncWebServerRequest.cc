@@ -134,8 +134,6 @@ void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncClient* client)
         req->onDisconnect();
         // 回收
         req->server_->recycleRequest(req);
-
-        // delete (AsyncWebServerRequest*)arg;
     }, this);
 }
 
