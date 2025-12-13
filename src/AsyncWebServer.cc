@@ -103,6 +103,7 @@ AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, ArRequestHandlerFun
     auto* handler = new AsyncCallbackWebHandler();
     handler->setUri(uri);
     handler->onRequest(onReq);
+    addHandler(handler);
     return *handler;
 }
 
