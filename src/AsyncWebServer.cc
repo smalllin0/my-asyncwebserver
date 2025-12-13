@@ -25,12 +25,6 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
 
             client->set_rx_timeout_second(3);
             auto* req = self->allocateRequest(self, client);
-            // auto* req = new AsyncWebServerRequest((AsyncWebServer*)server, client);
-            // ESP_LOGW(TAG, "Size of req: %ld", sizeof(AsyncWebServerRequest));
-            // ESP_LOGW(TAG, "Size of string: %ld", sizeof(std::string));
-            // ESP_LOGW(TAG, "Size of linklist<*>: %ld", sizeof(LinkedList<std::string*>));
-            // ESP_LOGW(TAG, "Size of stringarray: %ld", sizeof(StringArray));
-            // ESP_LOGW(TAG, "Size of ArDisconnectHandler: %ld", sizeof(ArDisconnectHandler));
             if (req == nullptr) {
                 client->close();
             }
@@ -61,6 +55,14 @@ AsyncWebServer::~AsyncWebServer()
     end();
     if (defaultHandler_) {
         delete defaultHandler_;
+    }
+    auto* current = pool_.exchange(nullptr);
+    if (current != nullptr) {
+        while (current) {
+            auto* next = current->next_;
+            delete current;
+            current = next;
+        }
     }
 }
 

@@ -39,6 +39,8 @@ public:
             defaultHandler_->onUpload(nullptr);
             defaultHandler_->onBody(nullptr);
         }
+        server_.set_connected_handler(nullptr, nullptr);
+        server_.set_clean_handler(nullptr, nullptr);
     }
     void recycleRequest(AsyncWebServerRequest* req);
 
