@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>404 - 页面未找到</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0c0c1d;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      overflow: hidden;
+    }
+    .space-bg::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(circle at 20% 30%, rgba(70, 70, 255, 0.1), transparent 30%),
+                  radial-gradient(circle at 80% 70%, rgba(100, 50, 255, 0.1), transparent 30%);
+      z-index: -1;
+    }
+    h1 {
+      font-size: 12rem;
+      font-weight: 800;
+      background: linear-gradient(to bottom, #6a5af9, #9d8aea);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 1rem;
+      animation: float 3s ease-in-out infinite;
+    }
+    p {
+      font-size: 1.2rem;
+      max-width: 600px;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+      color: #b0b0d0;
+    }
+    a {
+      display: inline-block;
+      padding: 12px 32px;
+      background: #6a5af9;
+      color: white;
+      text-decoration: none;
+      border-radius: 30px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(106, 90, 249, 0.3);
+    }
+    a:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 25px rgba(106, 90, 249, 0.5);
+      background: #7d6bff;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+    @media (max-width: 600px) {
+      h1 { font-size: 8rem; }
+      p { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body class="space-bg">
+  <h1>404</h1>
+  <p>抱歉，你访问的页面似乎被外星人劫持了！<br>也许它正在飞往银河系另一端的路上…</p>
+  <a href="/index.html">🚀 返回首页</a>
+</body>
+</html>

@@ -1,0 +1,7 @@
+dependencies:
+  idf: '>=5.4'
+  smallin/my-asynctcp: '>=1.0.0'
+description: 异步Web组件
+license: Apache 2.0
+repository: https://gitee.com/comrade-kobayashi/my-component-library/tree/master/components/my-asyncwebserver
+version: 1.0.2
