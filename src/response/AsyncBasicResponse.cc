@@ -27,7 +27,7 @@ inline void AsyncBasicResponse::respond(AsyncWebServerRequest* req)
         return;
     }
     state_ = RESPONSE_HEADERS;
-    auto header_ = assembleHead(req->version_);
+    header_ = assembleHead(req->version_);
     
     // 立即尝试发送
     ack(req, 0, 0);
