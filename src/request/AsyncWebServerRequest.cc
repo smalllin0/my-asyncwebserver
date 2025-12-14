@@ -186,16 +186,13 @@ void AsyncWebServerRequest::onData(void* buf, size_t len)
 {
 
     while (true) {
-        if (parseState_ < PARSE_REQ_BODY) {
-            // 处理请求行、请求头
-
+        if (parseState_ < PARSE_REQ_BODY) { // 处理请求行、请求头
             // 获取完整一行数据（\r\n\r\n，后续会去除这些字符故只检查\n即可)
             auto* str = (char*)buf;
             size_t i = 0;
             while (i < len && str[i] != '\n') { i ++; }
             if (i >= len) { 
                 // 无换行（跨数据块，先保存数据）
-
                 tmp_.append(str, len);
                 isFragmented_ = true;
             } else {
@@ -398,15 +395,15 @@ void AsyncWebServerRequest::parseReqLine(char* start, char* end)
     * OPTIONS  : O|P|7
     */
     uint8_t method_len = space1 - start;
-    auto hash = (start[0] << 16) | (method_len < 2 ? 0 : (start[1] << 8)) | method_len;
+    auto hash = (start[0]<<16) | (method_len < 2 ? 0 : (start[1]<<8)) | method_len;
     switch (hash) {
-        case ('G' << 16) | ('E' << 8) | 3 :  method_ = HTTP_GET;     break; // "GET"
-        case ('P' << 16) | ('O' << 8) | 4 :  method_ = HTTP_POST;    break; // "POST"
-        case ('D' << 16) | ('E' << 8) | 6 :  method_ = HTTP_DELETE;  break; // "DELETE"
-        case ('P' << 16) | ('U' << 8) | 3 :  method_ = HTTP_PUT;     break; // "PUT"
-        case ('P' << 16) | ('A' << 8) | 5 :  method_ = HTTP_PATCH;   break; // "PATCH"
-        case ('H' << 16) | ('E' << 8) | 4 :  method_ = HTTP_HEAD;    break; // "HEAD"
-        case ('O' << 16) | ('P' << 8) | 7 :  method_ = HTTP_OPTIONS; break; // "OPTIONS"
+        case ('G'<<16) | ('E'<<8) | 3 :  method_ = HTTP_GET;     break; // "GET"
+        case ('P'<<16) | ('O'<<8) | 4 :  method_ = HTTP_POST;    break; // "POST"
+        case ('D'<<16) | ('E'<<8) | 6 :  method_ = HTTP_DELETE;  break; // "DELETE"
+        case ('P'<<16) | ('U'<<8) | 3 :  method_ = HTTP_PUT;     break; // "PUT"
+        case ('P'<<16) | ('A'<<8) | 5 :  method_ = HTTP_PATCH;   break; // "PATCH"
+        case ('H'<<16) | ('E'<<8) | 4 :  method_ = HTTP_HEAD;    break; // "HEAD"
+        case ('O'<<16) | ('P'<<8) | 7 :  method_ = HTTP_OPTIONS; break; // "OPTIONS"
         default: method_ = HTTP_ANY; // 或抛出错误
     }
 
@@ -476,6 +473,75 @@ std::string AsyncWebServerRequest::urlDecode(const char* start, const char* end)
 }
 
 
+enum HeaderID : uint32_t {
+    // hash = char[0]<<24 | char[1]<<16 | char[2]<<8 | len
+
+    // Accept family
+    kAccept         = ('a'<<24) | ('c'<<16) | ('c'<<8) | 6,
+    kAcceptCharset  = ('a'<<24) | ('c'<<16) | ('c'<<8) | 14,  // "accept-charset"
+    kAcceptEncoding = ('a'<<24) | ('c'<<16) | ('c'<<8) | 15,  // "accept-encoding"
+    kAcceptLanguage = ('a'<<24) | ('c'<<16) | ('c'<<8) | 16,  // "accept-language"
+
+    // Standard headers
+    kAuthorization  = ('a'<<24) | ('u'<<16) | ('t'<<8) | 13,  // "authorization"
+    kCacheControl   = ('c'<<24) | ('a'<<16) | ('c'<<8) | 13,  // "cache-control"
+    kConnection     = ('c'<<24) | ('o'<<16) | ('n'<<8) | 10,  // "connection"
+    kCookie         = ('c'<<24) | ('o'<<16) | ('o'<<8) | 6,   // "cookie"
+    kDate           = ('d'<<24) | ('a'<<16) | ('t'<<8) | 4,   // "date"
+    kExpect         = ('e'<<24) | ('x'<<16) | ('p'<<8) | 6,   // "expect"
+    kForwarded      = ('f'<<24) | ('o'<<16) | ('r'<<8) | 9,   // "forwarded"
+    kFrom           = ('f'<<24) | ('r'<<16) | ('o'<<8) | 4,   // "from"
+    kHost           = ('h'<<24) | ('o'<<16) | ('s'<<8) | 4,   // "host"
+    // kIfMatch_Range = "if-range"/"if-match"⚠️
+    kIfMatch_Range  = ('i'<<24) | ('f'<<16) | ('-'<<8) | 8,     
+    kIfModifySince  = ('i'<<24) | ('f'<<16) | ('-'<<8) | 17,  // "if-modified-since"
+    kIfNoneMatch    = ('i'<<24) | ('f'<<16) | ('-'<<8) | 13,  // "if-none-match"
+    kIfUnmodifySince= ('i'<<24) | ('f'<<16) | ('-'<<8) | 19,  // "if-unmodified-since"
+    kMaxForwards    = ('m'<<24) | ('a'<<16) | ('x'<<8) | 12,  // "max-forwards"
+    kOrigin         = ('o'<<24) | ('r'<<16) | ('i'<<8) | 6,   // "origin"
+    kPragma         = ('p'<<24) | ('r'<<16) | ('a'<<8) | 6,   // "pragma"
+    kProxyAuth      = ('p'<<24) | ('r'<<16) | ('o'<<8) | 20,  // "proxy-authorization"
+    kReferer        = ('r'<<24) | ('e'<<16) | ('f'<<8) | 7,   // "referer"
+    kTE             = ('t'<<24) | ('e'<<16) | (0  <<8) | 2,   // "te" (len=2, c2=0)
+    kUserAgent      = ('u'<<24) | ('s'<<16) | ('e'<<8) | 10,  // "user-agent"
+    kUpgrade        = ('u'<<24) | ('p'<<16) | ('g'<<8) | 7,   // "upgrade"
+    kVia            = ('v'<<24) | ('i'<<16) | ('a'<<8) | 3,   // "via"
+    kWarning        = ('w'<<24) | ('a'<<16) | ('r'<<8) | 7,   // "warning"
+
+    // Content headers
+    kContentMD5         = ('c'<<24) | ('o'<<16) | ('n'<<8) | 11,    // "content-md5"
+    kContentType        = ('c'<<24) | ('o'<<16) | ('n'<<8) | 12,    // "content-type"
+    kContentRange       = ('c'<<24) | ('o'<<16) | ('n'<<8) | 13,    // "content-range"
+    kContentLength      = ('c'<<24) | ('o'<<16) | ('n'<<8) | 14,    // "content-length"
+    // kCtnEncode_Locate_Language = "content-encoding"/"content-location"/"content-language"⚠️
+    kCtnEncode_Locate_Language  = ('c'<<24) | ('o'<<16) | ('n'<<8) | 16,
+
+    // Security & privacy
+    kDNT                = ('d'<<24) | ('n'<<16) | ('t'<<8) | 3,   // "dnt"
+    kUpgradeInsecureReq = ('u'<<24) | ('p'<<16) | ('g'<<8) | 25, // "upgrade-insecure-requests"
+
+    // CORS / Preflight
+    kACLReqMethod   = ('a'<<24) | ('c'<<16) | ('c'<<8) | 24, // "access-control-request-method"
+    kACLReqHeaders  = ('a'<<24) | ('c'<<16) | ('c'<<8) | 27, // "access-control-request-headers"
+
+    // Attention!!!!Sec-Fetch-* (all len=14, prefix "sec") ⚠️
+    // KSecFectch = sec-fetch-mode or sec-fetch-site or sec-fetch-user or sec-fetch-dest
+    kSecFetch       = ('s'<<24) | ('e'<<16) | ('c'<<8) | 14,    // Attention!!!!
+
+    // X-Forwarded-* and custom
+    kXForwardedFor  = ('x'<<24) | ('-'<<16) | ('f'<<8) | 16, // "x-forwarded-for"
+    kXForwardedHost = ('x'<<24) | ('-'<<16) | ('f'<<8) | 17, // "x-forwarded-host"
+    kXForwardedProto= ('x'<<24) | ('-'<<16) | ('f'<<8) | 18, // "x-forwarded-proto"
+    kXRealIP        = ('x'<<24) | ('-'<<16) | ('r'<<8) | 10, // "x-real-ip"
+    kXRequestedWith = ('x'<<24) | ('-'<<16) | ('r'<<8) | 18, // "x-requested-with"
+    kXCSRFToken     = ('x'<<24) | ('-'<<16) | ('c'<<8) | 12, // "x-csrf-token"
+    kXXSRFToken     = ('x'<<24) | ('-'<<16) | ('x'<<8) | 12, // "x-xsrf-token"
+    kXAPIKey        = ('x'<<24) | ('-'<<16) | ('a'<<8) | 9,  // "x-api-key"
+
+    kUnknown        = 0 // 哨兵值，表示未知
+};
+
+
 
 /// @brief 解析解析每一行请求头中的字符串，以便后续处理（如路由、认证、解析请求体等）
 /// 将 Host, Content-Type, Authorization 等其存储到类的成员变量headers_中.[start, end)
@@ -487,20 +553,32 @@ std::string AsyncWebServerRequest::urlDecode(const char* start, const char* end)
  * Authorization: Basic eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXXXXXXXXXXXXXXXX
  * 
 */
-//。。。。。。没有去除首尾的空白符号
 bool AsyncWebServerRequest::parseReqHeader(const char* start, const char* end)
 {
     const auto* colon = start;
     while (colon < end && *colon != ':') colon++;
+    auto value_start = colon + 1;
+    while ((value_start < end) && (std::isspace(*value_start))) value_start++;
 
-    if (colon < end) {
-        std::string name, value;
-        name.assign(start, colon - start);
-        if(colon + 2 < end) value.assign(colon + 2, end - (colon + 2));
+    // must have value
+    if (end - value_start > 1) {
+        size_t name_len = colon - start;
+        if (name_len > 63)  return false;   // 正常请求头不超过该值的
+        uint32_t hash_code = 0;
+        char* hash_str = (char*)(&hash_code);
+        hash_str[0] = tolower(start[0]);
+        hash_str[1] = name_len > 1 ? tolower(start[1]) : '\0';
+        hash_str[2] = name_len > 2 ? tolower(start[2]) : '\0';
+        hash_str[3] = name_len & 0xff;
 
-        if (equalsIgnoreCase(name, "Host")) {
+        std::string name(start, name_len);
+        std::string value(value_start, end-value_start);
+        switch (hash_code)
+        {
+          case kHost:
             host_ = value;
-        } else if (equalsIgnoreCase(name, "Content-Type")) {
+            break;
+          case kContentType:
             contentType_ = value.substr(0, value.find(';'));
             if (value.starts_with("multipart")) {
                 boundary_ = value.substr(value.find('=') + 1);
@@ -508,27 +586,37 @@ bool AsyncWebServerRequest::parseReqHeader(const char* start, const char* end)
                 boundary_ += "--";          // 添加结束标志
                 isMultipart_ = true;
             }
-        } else if (equalsIgnoreCase(name, "Content-Length")) {
+            break;
+          case kContentLength:
             contentLength_ = atoi(value.c_str());
-        } else if (equalsIgnoreCase(name, "Expect") && value == "100-continue") {
-            expectingContinue_ = true;
-        } else if (equalsIgnoreCase(name, "Authorization")) {
+            break;
+          case kExpect:
+            if (value == "100-continue") {
+                expectingContinue_ = true;
+            }
+            break;
+          case kAuthorization:
             if (value.length() > 5 && equalsIgnoreCase(value.substr(0, 5), "Basic")) {
                 authorization_ = value.substr(6);
             } else if (value.length() > 6 && equalsIgnoreCase(value.substr(0, 6), "Digest")) {
                 isDigest_ = true;
                 authorization_ = value.substr(7);
             }
-        } else {
-            if (equalsIgnoreCase(name, "Upgrade") && equalsIgnoreCase(value, "websocket")) {
+            break;
+          case kUpgrade:
+            if (equalsIgnoreCase(value, "websocket")) {
                 reqconntype_ = RCT_WS;
-            } else {
-                if (equalsIgnoreCase(name, "Accept") && strContains(value, "text/event-stream", false)) {
-                    reqconntype_ = RCT_EVENT;
-                }
             }
-        } 
-        headers_.add(new AsyncWebHeader(name, value));
+            break;
+          case kAccept:
+            if (strContains(value, "text/event-stream", false)) {
+                reqconntype_ = RCT_EVENT;
+            }
+            break;
+          default:
+            return false;
+        }
+    headers_.add(new AsyncWebHeader(std::move(name), std::move(value)));
     }
 
     return true;
