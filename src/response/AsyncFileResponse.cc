@@ -1,16 +1,16 @@
 #include "AsyncFileResponse.h"
 #include "../tools.h"
 
-AsyncFileResponse::AsyncFileResponse(const std::string& path, const std::string& contentType, bool download, AwsTemplateProcessor cb)
+AsyncFileResponse::AsyncFileResponse(std::string path, std::string contentType, bool download, AwsTemplateProcessor cb)
     : AsyncAbstractResponse(cb)
+    , path_(std::move(path))
 {
     code_ = 200;
-    path_ = path;
 
     if (contentType.empty()) {
-        setContentType(path);
+        setContentType(path_);
     } else {
-        contentType_ = contentType;
+        contentType_ = std::move(contentType);
     }
 
     if (!download && !FILE_EXISTS(path_.c_str())) {
@@ -36,13 +36,14 @@ AsyncFileResponse::AsyncFileResponse(const std::string& path, const std::string&
     } else {
         value = R"(inline; filename=")" + path_.substr(path_.find_last_of('/') + 1) + R"(")";
     }
-    addHeader("Content-Disposition", value);
+    addHeader("Content-Disposition", std::move(value));
 }
 
 AsyncFileResponse::~AsyncFileResponse()
 {
-    file_ && fclose(file_);
+    auto fd = file_;
     file_ = nullptr;
+    fd && fclose(fd);
 }
 
 

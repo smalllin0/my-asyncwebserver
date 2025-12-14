@@ -16,7 +16,7 @@ public:
     DefaultHeaders(const DefaultHeaders &) = delete;            // 删除拷贝构造
     DefaultHeaders& operator=(const DefaultHeaders &) = delete; // 删除拷贝复值
 
-    inline void addHeader(const std::string& name, const std::string& value);
+    inline void addHeader(std::string name, std::string value);
     ConstIterator begin() const;
     ConstIterator end() const;
 

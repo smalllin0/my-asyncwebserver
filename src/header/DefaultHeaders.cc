@@ -11,9 +11,9 @@ DefaultHeaders& DefaultHeaders::Instance()
     return instance;
 }
 
-inline void DefaultHeaders::addHeader(const std::string&name, const std::string& value)
+inline void DefaultHeaders::addHeader(std::string name, std::string value)
 {
-    headers_.add(new AsyncWebHeader(name, value));
+    headers_.add(new AsyncWebHeader(std::move(name), std::move(value)));
 }
 
 ConstIterator DefaultHeaders::begin() const

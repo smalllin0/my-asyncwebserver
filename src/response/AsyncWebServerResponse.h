@@ -61,7 +61,7 @@ public:
             contentType_ = type;
         }
     }
-    virtual void addHeader(const std::string &name, const std::string &value);
+    virtual void addHeader(std::string name, std::string value);
     virtual std::string assembleHead(uint8_t version);
     virtual bool started() const {
         return state_ > RESPONSE_SETUP;

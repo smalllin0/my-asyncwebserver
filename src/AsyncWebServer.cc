@@ -24,7 +24,7 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
             auto* self = reinterpret_cast<AsyncWebServer*>(server);
 
             client->set_rx_timeout_second(3);
-            auto* req = self->allocateRequest(self, client);
+            auto* req = self->allocateRequest(client);
             if (req == nullptr) {
                 client->close();
             }
@@ -222,7 +222,7 @@ void AsyncWebServer::internalHandleDisconnect(AsyncWebServerRequest* req)
 }
 
 
-AsyncWebServerRequest* AsyncWebServer::allocateRequest(AsyncWebServer* server, AsyncClient* client)
+AsyncWebServerRequest* AsyncWebServer::allocateRequest(AsyncClient* client)
 {
     AsyncWebServerRequest* req;
     AsyncWebServerRequest* expected;
@@ -235,7 +235,7 @@ AsyncWebServerRequest* AsyncWebServer::allocateRequest(AsyncWebServer* server, A
         req = expected;
     } while (!pool_.compare_exchange_weak(expected, req->next_));
 
-    req->init(server, client);
+    req->init(this, client);
     return req;
 }
 

@@ -7,7 +7,7 @@
 
 class AsyncFileResponse : public AsyncAbstractResponse {
 public:
-    AsyncFileResponse(const std::string& path, const std::string &contentType=empty_string, bool download=false, AwsTemplateProcessor cb=nullptr);
+    AsyncFileResponse(std::string path, std::string contentType=empty_string, bool download=false, AwsTemplateProcessor cb=nullptr);
     ~AsyncFileResponse();
     inline bool sourceValid() const {
         return file_ != nullptr;

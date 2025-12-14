@@ -71,8 +71,8 @@ std::string AsyncWebServerResponse::assembleHead(uint8_t version)
     return out;
 }
 
-void AsyncWebServerResponse::addHeader(const std::string &name, const std::string &value) {
-    headers_.add(new AsyncWebHeader(name, value));
+void AsyncWebServerResponse::addHeader(std::string name, std::string value) {
+    headers_.add(new AsyncWebHeader(std::move(name), std::move(value)));
 }
 
 void AsyncWebServerResponse::respond(AsyncWebServerRequest* req) {

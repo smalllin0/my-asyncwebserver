@@ -66,7 +66,7 @@ public:
 protected:
     friend class AsyncWebServerRequest;
 
-    AsyncWebServerRequest* allocateRequest(AsyncWebServer* server, AsyncClient* client);
+    AsyncWebServerRequest* allocateRequest(AsyncClient* client);
     void internalHandleDisconnect(AsyncWebServerRequest* req);
     void internalAttachHandler(AsyncWebServerRequest* req);
     void internalRewriteRequest(AsyncWebServerRequest* req);

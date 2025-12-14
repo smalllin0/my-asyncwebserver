@@ -71,9 +71,8 @@ void AsyncStaticWebHandler::handleRequest(AsyncWebServerRequest* req)
             req->requestAuthentication();
     }
 
-    std::string file_name = (char*)(req->tmpObj_);
     struct stat file_stat;
-    if (stat((char*)(req->tmpObj_), &file_stat) != -1) {
+    if (stat(req->fileName_, &file_stat) != -1) {
         auto etag = std::to_string(file_stat.st_size);
         if (last_modified_.length() && last_modified_ == req->header("If-Modified-Since")) {
             req->send(304);
@@ -84,7 +83,7 @@ void AsyncStaticWebHandler::handleRequest(AsyncWebServerRequest* req)
                 response->addHeader("ETag", etag);
                 req->send(response);
         } else {
-            auto* response = new AsyncFileResponse(file_name, empty_string, false, callback_);
+            auto* response = new AsyncFileResponse(req->fileName_, "", false, callback_);
             if (last_modified_.length()) {
                 response->addHeader("Last-Modified", last_modified_);
             }
@@ -98,8 +97,9 @@ void AsyncStaticWebHandler::handleRequest(AsyncWebServerRequest* req)
         req->send(404);
     }
 
-    free(req->tmpObj_);
-    req->tmpObj_ = nullptr;
+    auto* tmp = req->fileName_;
+    req->fileName_ = nullptr;
+    delete tmp;
 }
 
 
@@ -160,9 +160,9 @@ bool AsyncStaticWebHandler::fileExists(AsyncWebServerRequest* req, const std::st
 
     if (found) {
         auto pathLen = path.length() + 1;
-        auto* tmpPath = (char*) malloc(pathLen);
-        snprintf(tmpPath, pathLen, "%s", path.c_str());
-        req->tmpObj_ = (void*)tmpPath;
+        if (req->fileName_) delete req->fileName_;
+        req->fileName_ = new char[pathLen];
+        snprintf(req->fileName_, pathLen, "%s", path.c_str());
 
         gzipStats_ = (gzipStats_ << 1) + (gzipFound ? 1 : 0);
         if (gzipStats_ == 0x00) {

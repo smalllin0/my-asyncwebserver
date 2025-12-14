@@ -133,8 +133,8 @@ public:
     bool authenticate(const char* username, const char* passwd, const char* realm=nullptr, bool passwdIsHash=false);
     void requestAuthentication(const char* realm=nullptr, bool isDigest=true);
     
-    void addInterestingHeader(const std::string& name);
-    void redirect(const std::string& url);
+    void addInterestingHeader(std::string name);
+    void redirect(std::string url);
 
     // const std::string& ASYNCWEBSERVER_REGEX_ATTRIBUTE pathArg(size_t i) const;
 
@@ -143,24 +143,21 @@ public:
     /// @param code HTTP状态码
     /// @param contentType 内容类型
     /// @param content 内容
-    void send(int code, const std::string& contentType=empty_string, const std::string& content=empty_string) {
-        send(beginResponse(code, contentType, content));
+    void send(int code, std::string contentType=empty_string, std::string content=empty_string) {
+        send(beginResponse(code, std::move(contentType), std::move(content)));
     }
-    void send(const std::string& path, const std::string& contentType=empty_string, bool download=false, AwsTemplateProcessor callback=nullptr);
-    void sendChunked(const std::string &contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback=nullptr);
-    void send_P(int code, const std::string& contentType, const uint8_t* content, size_t len, AwsTemplateProcessor callback=nullptr);
+    void send(std::string path, std::string contentType=empty_string, bool download=false, AwsTemplateProcessor callback=nullptr);
+    void sendChunked(std::string contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback=nullptr);
+    void send_P(int code, std::string contentType, const uint8_t* content, size_t len, AwsTemplateProcessor callback=nullptr);
 
-    AsyncWebServerResponse* beginResponse(int code, const std::string& contentType =empty_string, const std::string& content=empty_string);
-    AsyncWebServerResponse* beginResponse(const std::string &path, const std::string &contentType =empty_string, bool download = false, AwsTemplateProcessor callback = nullptr);
-    AsyncWebServerResponse* beginResponse(const std::string &contentType, size_t len, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr);
-    AsyncWebServerResponse* beginChunkedResponse(const std::string &contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr);
-    AsyncWebServerResponse* beginResponse_P(int code, const std::string &contentType, const uint8_t *content, size_t len, AwsTemplateProcessor callback = nullptr);
+    AsyncWebServerResponse* beginResponse(int code, std::string contentType =empty_string, std::string content=empty_string);
+    AsyncWebServerResponse* beginResponse(std::string path, std::string contentType =empty_string, bool download = false, AwsTemplateProcessor callback = nullptr);
+    AsyncWebServerResponse* beginResponse(std::string contentType, size_t len, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr);
+    AsyncWebServerResponse* beginChunkedResponse(std::string contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr);
+    AsyncWebServerResponse* beginResponse_P(int code, std::string contentType, const uint8_t *content, size_t len, AwsTemplateProcessor callback = nullptr);
     // 暂不实现流式响应，通过chunked间接可完成
     // AsyncResponseStream *beginResponseStream(const std::string &contentType, size_t bufferSize = 1460);
 
-
-    std::string     fileName_;          // 文件名
-    void*           tmpObj_{nullptr};   
 
 private:
     // 核心友元类声明
@@ -213,6 +210,7 @@ private:
     void removeNotInterestingHeaders();
 
 
+    char*                   fileName_{nullptr};   
     AsyncWebServerRequest*  next_;                      // 下一请求
     AsyncClient*            client_;                    // 关联的连接
     AsyncWebServer*         server_;                    // 关联的服务器
