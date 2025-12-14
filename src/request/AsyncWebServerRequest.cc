@@ -613,10 +613,8 @@ bool AsyncWebServerRequest::parseReqHeader(const char* start, const char* end)
                 reqconntype_ = RCT_EVENT;
             }
             break;
-          default:
-            return false;
         }
-    headers_.add(new AsyncWebHeader(std::move(name), std::move(value)));
+        headers_.add(new AsyncWebHeader(std::move(name), std::move(value)));
     }
 
     return true;
