@@ -7,7 +7,7 @@
 class AsyncWebParameter {
 public:
 
-    AsyncWebParameter(const std::string& name, const std::string& value, bool form=false, bool file=false, size_t size=0);
+    AsyncWebParameter(std::string name, std::string value, bool form=false, bool file=false, size_t size=0);
 
     const std::string& name() const {
         return name_;
