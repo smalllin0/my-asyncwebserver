@@ -36,15 +36,13 @@ bool AsyncWebSocket::canHandle(AsyncWebServerRequest* req)
         || !req->isExpectedRequestedConnType(RCT_WS)) {
             return false;
     }
-
-
-        req->addInterestingHeader(WS_STR_CONNECTION);
-        req->addInterestingHeader(WS_STR_UPGRADE);
-        req->addInterestingHeader(WS_STR_ORIGIN);
-        req->addInterestingHeader(WS_STR_VERSION);
-        req->addInterestingHeader(WS_STR_KEY);
-        req->addInterestingHeader(WS_STR_PROTOCOL);
-        return true;
+    req->addInterestingHeader(WS_STR_CONNECTION);
+    req->addInterestingHeader(WS_STR_UPGRADE);
+    req->addInterestingHeader(WS_STR_ORIGIN);
+    req->addInterestingHeader(WS_STR_VERSION);
+    req->addInterestingHeader(WS_STR_KEY);
+    req->addInterestingHeader(WS_STR_PROTOCOL);
+    return true;
 }
 
 /// @brief 处理请求，将协议升级为websocket(发送响应并收到确认后，会生成一个WebsocketClient对象接管连接)
