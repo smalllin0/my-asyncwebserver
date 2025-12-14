@@ -1,11 +1,10 @@
 #include "AsyncWebHeader.h"
 #include <string>
 
-AsyncWebHeader::AsyncWebHeader(const std::string& name, const std::string& value)
-    : name_(name)
-    , value_(value)
+/// @brief 推荐构造，用户可显示使用移动语义
+AsyncWebHeader::AsyncWebHeader(std::string name, std::string value)
+    : name_(std::move(name)), value_(std::move(value))
 {}
-
 
 AsyncWebHeader::AsyncWebHeader(const std::string& data)
     : name_()

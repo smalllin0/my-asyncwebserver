@@ -6,7 +6,7 @@
 /// HTTP头部信息（如 Content-Type、Cookie、User-Agent 等）
 class AsyncWebHeader {
 public:
-    AsyncWebHeader(const std::string& name, const std::string& value);
+    AsyncWebHeader(std::string name, std::string value);
     AsyncWebHeader(const  std::string& data);
     const std::string& name() const {
         return name_;
