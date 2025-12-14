@@ -143,15 +143,15 @@ public:
     /// @param code HTTP状态码
     /// @param contentType 内容类型
     /// @param content 内容
-    void send(int code, std::string contentType=empty_string, std::string content=empty_string) {
+    void send(int code, std::string contentType="", std::string content="") {
         send(beginResponse(code, std::move(contentType), std::move(content)));
     }
-    void send(std::string path, std::string contentType=empty_string, bool download=false, AwsTemplateProcessor callback=nullptr);
+    void send(std::string path, std::string contentType="", bool download=false, AwsTemplateProcessor callback=nullptr);
     void sendChunked(std::string contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback=nullptr);
     void send_P(int code, std::string contentType, const uint8_t* content, size_t len, AwsTemplateProcessor callback=nullptr);
 
-    AsyncWebServerResponse* beginResponse(int code, std::string contentType =empty_string, std::string content=empty_string);
-    AsyncWebServerResponse* beginResponse(std::string path, std::string contentType =empty_string, bool download = false, AwsTemplateProcessor callback = nullptr);
+    AsyncWebServerResponse* beginResponse(int code, std::string contentType ="", std::string content="");
+    AsyncWebServerResponse* beginResponse(std::string path, std::string contentType ="", bool download = false, AwsTemplateProcessor callback = nullptr);
     AsyncWebServerResponse* beginResponse(std::string contentType, size_t len, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr);
     AsyncWebServerResponse* beginChunkedResponse(std::string contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback = nullptr);
     AsyncWebServerResponse* beginResponse_P(int code, std::string contentType, const uint8_t *content, size_t len, AwsTemplateProcessor callback = nullptr);

@@ -1010,7 +1010,7 @@ void AsyncWebServerRequest::send(AsyncWebServerResponse* response)
 void AsyncWebServerRequest::send(std::string path, std::string contentType, bool download, AwsTemplateProcessor callback)
 {
     if (FILE_EXISTS(path.c_str()) || (!download && FILE_EXISTS(std::string(path + ".gz").c_str()))) {
-        send(beginResponse(std::move(path), std::move(contentType), download, callback));
+        send(beginResponse(std::move(path), std::move(contentType), download, std::move(callback)));
     } else {
         send(404);
     }
@@ -1019,13 +1019,13 @@ void AsyncWebServerRequest::send(std::string path, std::string contentType, bool
 /// @brief 发送一个分片响应
 void AsyncWebServerRequest::sendChunked(std::string contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback)
 {
-    send(beginChunkedResponse(std::move(contentType), callback, templateCallback));
+    send(beginChunkedResponse(std::move(contentType), std::move(callback), std::move(templateCallback)));
 }
 
 /// @brief 发送一个内存数据响应
 void AsyncWebServerRequest::send_P(int code, std::string contentType, const uint8_t* content, size_t len, AwsTemplateProcessor callback)
 {
-    send(beginResponse_P(code, std::move(contentType), content, len, callback));
+    send(beginResponse_P(code, std::move(contentType), content, len, std::move(callback)));
 }
 
 
@@ -1182,7 +1182,7 @@ AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(int code, std::stri
 AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(std::string path, std::string contentType, bool download, AwsTemplateProcessor callback)
 {
     if (FILE_EXISTS(path.c_str()) || (!download && FILE_EXISTS(std::string(path + ".gz").c_str()))) {
-        return new AsyncFileResponse(std::move(path), std::move(contentType), download, callback);
+        return new AsyncFileResponse(std::move(path), std::move(contentType), download, std::move(callback));
     }
     return nullptr;
 }
@@ -1195,7 +1195,7 @@ AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(std::string path, s
 AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(std::string contentType, size_t len, AwsResponseFiller callback, AwsTemplateProcessor templateCallback)
 {
     if (callback != nullptr) {
-        return new AsyncCallbackResponse(std::move(contentType), len, callback, templateCallback);
+        return new AsyncCallbackResponse(std::move(contentType), len, std::move(callback), std::move(templateCallback));
     }
     return nullptr;
 }
@@ -1207,9 +1207,9 @@ AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(std::string content
 AsyncWebServerResponse* AsyncWebServerRequest::beginChunkedResponse(std::string contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback)
 {
     if (version_) {
-        return new AsyncChunkedResponse(std::move(contentType), callback, templateCallback);
+        return new AsyncChunkedResponse(std::move(contentType), std::move(callback), std::move(templateCallback));
     }
-    return new AsyncCallbackResponse(std::move(contentType), 0, callback, templateCallback);
+    return new AsyncCallbackResponse(std::move(contentType), 0, std::move(callback), std::move(templateCallback));
 }
 
 /// @brief 构建一个内部存储响应
@@ -1218,7 +1218,7 @@ AsyncWebServerResponse* AsyncWebServerRequest::beginChunkedResponse(std::string 
 /// @param callback 用于填充分块的回调函数
 /// @param templateCallback 模板处理函数
 AsyncWebServerResponse* AsyncWebServerRequest::beginResponse_P(int code, std::string contentType, const uint8_t *content, size_t len, AwsTemplateProcessor callback){
-  return new AsyncProgmemResponse(code, std::move(contentType), content, len, callback);
+  return new AsyncProgmemResponse(code, std::move(contentType), content, len, std::move(callback));
 }
 
 
