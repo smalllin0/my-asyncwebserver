@@ -17,17 +17,29 @@ AsyncStaticWebHandler::AsyncStaticWebHandler(const char* uri, const char* path, 
     : cache_control_(cache_control)
 {
     auto uri_len = strlen(uri);
+    uri_.reserve(uri_len + 1);
     if (uri_len) {
-        uri_ = (uri[0] == '/') ? uri : (std::string("/") + uri);
+        if (uri[0] == '/') {
+            uri_ = uri;
+        } else {
+            uri_.push_back('/');
+            uri_ += uri;
+        }
     } else {
-        uri_ = "/";
+        uri_.push_back('/');
     }
 
     auto path_len = strlen(path);
+    path_.reserve(path_len)
     if (path_len) {
-        path_ = (path[0] == '/') ? path : (std::string("/") + path);
+        if (path[0] == '/') {
+            path_ += path;
+        } else {
+            path_.push_bak('/');
+            path_ += path;
+        }
     } else {
-        path_ = "/";
+        path_.push_bak('/');
     }
     isDir_ = (path[path_len - 1] == '/');
 
@@ -110,14 +122,18 @@ bool AsyncStaticWebHandler::getFile(AsyncWebServerRequest* req)
     const auto prefixLen = uri_.length();
     
     auto pathView = url.substr(prefixLen);
+    auto path_view_len = pathView.length();
 
-    bool pathEmpty = pathView.length() == 0;
-    bool endsWithSlash = (!pathEmpty && pathView[pathView.length() - 1] == '/');
+    bool pathEmpty = (path_view_len == 0);
+    bool endsWithSlash = (!pathEmpty && pathView[path_view_len - 1] == '/');
     bool shouldSkipCheck = (isDir_ && pathEmpty) || endsWithSlash;
 
     // 先尝试原路径文件
+    std::string fullPath;
+    fullPath.reserve(path_.length() + path_view_len + 1);
+    fullPath += path_;
+    fullPath += pathView;
     if (!shouldSkipCheck) {
-        auto fullPath = path_ + pathView;
         if (fileExists(req, fullPath)) {
             return true;
         }
@@ -129,8 +145,7 @@ bool AsyncStaticWebHandler::getFile(AsyncWebServerRequest* req)
     }
 
     // 构建默认文件路径
-    auto fullPath = path_ + pathView;
-    if (pathEmpty || fullPath[fullPath.length() - 1] != '/') {
+    if (pathEmpty || fullPath[path_view_len - 1] != '/') {
         fullPath += '/';
     }
     fullPath += default_file_;
