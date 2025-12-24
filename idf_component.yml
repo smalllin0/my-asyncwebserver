@@ -1,7 +1,7 @@
 description: 异步Web组件
 license: Apache 2.0
 repository: git@github.com:smalllin0/my-asyncwebserver.git
-version: 1.1.1
+version: 1.1.2
 dependencies:
   idf: '>=5.4'
   smallin/my-asynctcp: '>=1.1.0'
