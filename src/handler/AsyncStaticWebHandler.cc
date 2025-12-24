@@ -30,16 +30,16 @@ AsyncStaticWebHandler::AsyncStaticWebHandler(const char* uri, const char* path, 
     }
 
     auto path_len = strlen(path);
-    path_.reserve(path_len)
+    path_.reserve(path_len);
     if (path_len) {
         if (path[0] == '/') {
             path_ += path;
         } else {
-            path_.push_bak('/');
+            path_.push_back('/');
             path_ += path;
         }
     } else {
-        path_.push_bak('/');
+        path_.push_back('/');
     }
     isDir_ = (path[path_len - 1] == '/');
 
