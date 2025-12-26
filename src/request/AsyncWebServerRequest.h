@@ -256,7 +256,6 @@ private:
     std::string itemType_{};                // 当前部分的类型
     std::string itemValue_{};               // 当前部分的值（不适用于文件类型）
 };
-// 优化前424
 
 
 #endif

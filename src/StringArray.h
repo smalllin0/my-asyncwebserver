@@ -7,6 +7,7 @@
 #include <functional>
 #include <sys/stat.h>
 #include "tools.h"
+#include <strings.h>
 
 /// @brief 定义一个模板类，用于存储值、下一个实例的指针
 template <typename T>
@@ -226,10 +227,10 @@ private:
 class StringArray : public LinkedList<std::string> {
 public:
     StringArray() : LinkedList(nullptr) {}
-    bool containsIgnoreCase(const std::string &str)
+    bool containsIgnoreCase(const char* str)
     {
         for (const auto &s : *this) {
-            if (equalsIgnoreCase(str, s)) {
+            if (strcasecmp(str, s.c_str()) == 0) {
                 return true;
             }
         }

@@ -6,19 +6,6 @@
 // 构造空对象需要时间，这里构造一个供整个库使用
 const std::string empty_string = std::string();
 
-bool equalsIgnoreCase(std::string str1, std::string str2)
-{
-    size_t len = str1.length();
-    if (len != str2.length()) {
-        return false;
-    }
-    for (size_t i = 0; i < len; i++) {
-        if (tolower(str1[i]) != tolower(str2[i])) {
-            return false;
-        }
-    }
-    return true;
-}
 
 bool FILE_IS_REAL(const char* path)
 {

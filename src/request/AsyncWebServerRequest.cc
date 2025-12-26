@@ -322,8 +322,6 @@ void AsyncWebServerRequest::parsePlainPost(uint8_t* data, size_t len)
     uint8_t* start;
     uint8_t* end;
     uint8_t* equal_ptr;
-    std::string name;
-    std::string value;
     bool isFinal = (parsedLength_ + len == contentLength_);
 
     while (pos < len) {
@@ -352,14 +350,12 @@ void AsyncWebServerRequest::parsePlainPost(uint8_t* data, size_t len)
                 while (equal_ptr < end && *equal_ptr != '=') { equal_ptr++; }
                 
                 if (*start != '{' && *start != '[' && equal_ptr != end) {
-                    name.assign((const char*)(start), equal_ptr - start);
-                    value.assign((const char*)(equal_ptr+1), end - equal_ptr);
+                    params_.add(new AsyncWebParameter(
+                        urlDecode((const char*)start, (const char*)equal_ptr),
+                        urlDecode((const char*)equal_ptr + 1, (const char*)end),
+                        true
+                    ));
                 }
-                params_.add(new AsyncWebParameter(
-                    urlDecode((const char*)start, (const char*)equal_ptr),
-                    urlDecode((const char*)equal_ptr + 1, (const char*)end),
-                    true
-                ));
                 if (isParseTmp) { tmp_.clear(); }
             }
         }   
@@ -564,12 +560,17 @@ bool AsyncWebServerRequest::parseReqHeader(const char* start, const char* end)
     if (end - value_start > 1) {
         size_t name_len = colon - start;
         if (name_len > 63)  return false;   // 正常请求头不超过该值的
-        uint32_t hash_code = 0;
-        char* hash_str = (char*)(&hash_code);
-        hash_str[0] = tolower(start[0]);
-        hash_str[1] = name_len > 1 ? tolower(start[1]) : '\0';
-        hash_str[2] = name_len > 2 ? tolower(start[2]) : '\0';
-        hash_str[3] = name_len & 0xff;
+        uint32_t hash_code = name_len;
+        if (name_len > 2) {
+            hash_code |= tolower(start[2]) << 8;
+            hash_code |= tolower(start[1]) << 16;
+            hash_code |= tolower(start[0]) << 24;
+        } else if (name_len > 1) {
+            hash_code |= tolower(start[1]) << 16;
+            hash_code |= tolower(start[0]) << 24;
+        } else {
+            hash_code |= tolower(start[0]) << 24;
+        }
 
         std::string name(start, name_len);
         std::string value(value_start, end-value_start);
@@ -596,15 +597,15 @@ bool AsyncWebServerRequest::parseReqHeader(const char* start, const char* end)
             }
             break;
           case kAuthorization:
-            if (value.length() > 5 && equalsIgnoreCase(value.substr(0, 5), "Basic")) {
+            if (value.length() > 5 && (0 == strncasecmp(value.c_str(), "Basic", 5))) {
                 authorization_ = value.substr(6);
-            } else if (value.length() > 6 && equalsIgnoreCase(value.substr(0, 6), "Digest")) {
+            } else if (value.length() > 6 && (0 == strncasecmp(value.c_str(), "Digest", 6))) {
                 isDigest_ = true;
                 authorization_ = value.substr(7);
             }
             break;
           case kUpgrade:
-            if (equalsIgnoreCase(value, "websocket")) {
+            if (0 == strcasecmp(value.c_str(), "websocket")) {
                 reqconntype_ = RCT_WS;
             }
             break;
@@ -783,7 +784,7 @@ void AsyncWebServerRequest::parseMultiPartLine(uint8_t* start, uint8_t* end)
             // 数据不是在缓存中，加载到缓存
             tmp_.assign((char*)start, end - start);
         }
-        if (line_len > 19 && equalsIgnoreCase(tmp_.substr(0, 19), "Content-Disposition")) {
+        if (line_len > 19 && (0 == strncasecmp(tmp_.c_str(), "Content-Disposition", 19))) {
             tmp_ = tmp_.substr(tmp_.find(';') + 2);
             do {
                 auto equal_index = tmp_.find('=');
@@ -797,7 +798,7 @@ void AsyncWebServerRequest::parseMultiPartLine(uint8_t* start, uint8_t* end)
                 }
                 tmp_ = tmp_.substr(pos2 + 2);
             } while (tmp_.find(';') != std::string::npos);
-        } else if (line_len > 12 && equalsIgnoreCase(tmp_.substr(0, 12), "Content-Type")) {
+        } else if (line_len > 12 && (0 == strncasecmp(tmp_.c_str(), "Content-Type", 12))) {
             itemType_ = tmp_.substr(12 + 2);
             itemIsFile_ = true;
         }
@@ -967,7 +968,7 @@ void AsyncWebServerRequest::requestAuthentication(const char* realm, bool isDige
 /// @brief 向关注的头请求头列表中添加头部
 void AsyncWebServerRequest::addInterestingHeader(std::string name)
 {
-    if (!interestingHeaders_.containsIgnoreCase(name)) {
+    if (!interestingHeaders_.containsIgnoreCase(name.c_str())) {
         interestingHeaders_.add(std::move(name));
     }
 }
@@ -1037,7 +1038,7 @@ bool AsyncWebServerRequest::hasHeader(const std::string &name) const
         return false;
     }
     for (const auto &header : headers_) {
-        if (equalsIgnoreCase(header->name(), name)) {
+        if (0 == strcasecmp(header->name().c_str(), name.c_str())) {
             return true;
         }
     }
@@ -1059,7 +1060,7 @@ AsyncWebHeader* AsyncWebServerRequest::getHeader(const std::string &name) const
     }
 
     for (const auto &header : headers_) {
-        if (equalsIgnoreCase(header->name(), name)) {
+        if (0 == strcasecmp(header->name().c_str(), name.c_str())) {
             return header;
         }
     }
