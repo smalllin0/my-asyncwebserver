@@ -80,6 +80,8 @@ size_t AsyncAbstractResponse::ack(AsyncWebServerRequest* req, size_t len,  uint3
             buffer_size = std::min(contentLength_ - sentLength_, space);
             data_size = buffer_size;
             if (chunked_) buffer_size += 8;
+        } else {
+            //..................存在问题！！！
         }
         if (buffer_size > buffer_.size()) {
             buffer_.resize(buffer_size);
