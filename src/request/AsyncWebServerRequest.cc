@@ -458,8 +458,10 @@ std::string AsyncWebServerRequest::urlDecode(const char* start, const char* end)
             decoded = strtol(tmp, nullptr, 16);
         } else if (*start == '+') {
             decoded = ' ';
+            start ++;
         } else {
             decoded = *start;
+            start ++;
         }
         decoded_str.push_back(decoded);
     }
