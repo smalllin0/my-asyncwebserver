@@ -231,7 +231,6 @@ void AsyncWebServerRequest::onData(void* buf, size_t len)
                         }
                     }
                 }
-
                 if (isPlainPost_) {   
                     // 普通表单解析
                     if (needParse) {
@@ -268,17 +267,17 @@ void AsyncWebServerRequest::onData(void* buf, size_t len)
 void AsyncWebServerRequest::parseLine(char* start, char* end) //C++17
 {
     // 去除空白字符
-    auto* str_end = end;
     while (start < end  && std::isspace(static_cast<unsigned char>(*start))) {
         start ++;
     } 
     if (start < end) { // 在字符串长度不为0时去除结尾空白
         while (end > start && std::isspace(static_cast<unsigned char>(*(--end))));
     }
+    auto is_empty_line = (start == end);
     end++;  // 指向不包含的字符
 
     if (parseState_ == PARSE_REQ_START) {
-        if (start == str_end) {
+        if (is_empty_line) {
             parseState_ = PARSE_REQ_FAIL;
             client_->close();
             ESP_LOGE(TAG, "解析失败: 请求行为空.");
@@ -290,7 +289,7 @@ void AsyncWebServerRequest::parseLine(char* start, char* end) //C++17
     }
 
     if (parseState_ == PARSE_REQ_HEADERS) {
-        if (start < str_end) {
+        if (!is_empty_line) {
             parseReqHeader(start, end);
         } else {
             // 遇到空行，请求头处理结束
@@ -561,16 +560,10 @@ bool AsyncWebServerRequest::parseReqHeader(const char* start, const char* end)
         size_t name_len = colon - start;
         if (name_len > 63)  return false;   // 正常请求头不超过该值的
         uint32_t hash_code = name_len;
-        if (name_len > 2) {
-            hash_code |= tolower(start[2]) << 8;
-            hash_code |= tolower(start[1]) << 16;
-            hash_code |= tolower(start[0]) << 24;
-        } else if (name_len > 1) {
-            hash_code |= tolower(start[1]) << 16;
-            hash_code |= tolower(start[0]) << 24;
-        } else {
-            hash_code |= tolower(start[0]) << 24;
-        }
+        char* hash_str = (char*)(&hash_code);
+        hash_code |= (name_len > 2 ? tolower(start[2]) : '\0') << 8;
+        hash_code |= (name_len > 1 ? tolower(start[1]) : '\0') << 16;
+        hash_code |= tolower(start[0]) << 24;
 
         std::string name(start, name_len);
         std::string value(value_start, end-value_start);
