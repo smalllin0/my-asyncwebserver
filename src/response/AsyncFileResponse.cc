@@ -30,11 +30,15 @@ AsyncFileResponse::AsyncFileResponse(std::string path, std::string contentType, 
 
 
     std::string value;
-    value.reserve(32);
+    value.reserve(128);
     if (download) {
-        value = R"(attachment; filename=")" + path_.substr(path_.find_last_of('/') + 1) + R"(")";
+        value += R"(attachment; filename=")";
+        value += path_.substr(path_.find_last_of('/') + 1);
+        value += R"(")";
     } else {
-        value = R"(inline; filename=")" + path_.substr(path_.find_last_of('/') + 1) + R"(")";
+        value += R"(inline; filename=")";
+        value += path_.substr(path_.find_last_of('/') + 1);
+        value += R"(")";
     }
     addHeader("Content-Disposition", std::move(value));
 }
