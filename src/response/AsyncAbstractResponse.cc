@@ -81,7 +81,13 @@ size_t AsyncAbstractResponse::ack(AsyncWebServerRequest* req, size_t len,  uint3
             data_size = buffer_size;
             if (chunked_) buffer_size += 8;
         } else {
-            //..................存在问题！！！
+            if (chunked_) {
+                data_size = space - 8;
+                buffer_size = space;
+            } else {
+                data_size = space;
+                buffer_size = data_size;
+            }
         }
         if (buffer_size > buffer_.size()) {
             buffer_.resize(buffer_size);
