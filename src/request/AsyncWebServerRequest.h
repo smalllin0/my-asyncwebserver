@@ -227,7 +227,7 @@ private:
     bool                    isFragmented_{false};
     uint8_t                 parseState_;
 
-    uint8_t                     version_{0};            // 当前请求采用的HTTP协议版本
+    uint8_t                     version_{1};            // 当前请求采用的HTTP协议版本
     WebRequestMethodComposite   method_{HTTP_ANY};      // 请求的方法
     std::string                 url_{};                 // 请求的URL
     std::string                 host_{};                // 请求的HOST
