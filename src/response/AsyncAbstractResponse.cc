@@ -44,7 +44,7 @@ size_t AsyncAbstractResponse::ack(AsyncWebServerRequest* req, size_t len,  uint3
         auto headerRemaining = header_length - headerSent_;
         if (headerRemaining > 0) {
             auto toSend = std::min(headerRemaining, space);
-            size_t sent = client->add(header_.c_str() + headerSent_, toSend, TCP_WRITE_FLAG_COPY);
+            auto sent = client->add(header_.c_str() + headerSent_, toSend);
             if (sent) {
                 headerSent_ += sent;
                 sent_bytes += sent;

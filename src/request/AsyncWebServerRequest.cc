@@ -66,7 +66,7 @@ void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncClient* client)
     tmp_            = empty_string;
     isFragmented_   = false;
     parseState_     = PARSE_REQ_START;
-    version_         = 0;
+    version_         = 1;
     method_         = HTTP_ANY;
     url_            = empty_string;
     host_           = empty_string;
@@ -95,10 +95,10 @@ void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncClient* client)
     itemType_           = empty_string;
     itemValue_          = empty_string;
 
-    client->set_data_received_handler([](void* r, void* data, size_t len) {
-            auto* req = reinterpret_cast<AsyncWebServerRequest*>(r);
-            req->onData(data, len);
-        },
+    client->set_data_received_handler([](void* ctx, void* data, size_t len) {
+            auto* req = reinterpret_cast<AsyncWebServerRequest*>(ctx);
+            req->onData((void*)data, len);
+        }, 
         this
     );
     client->set_error_event_handler([](void* r, int8_t err){
@@ -298,7 +298,7 @@ void AsyncWebServerRequest::parseLine(char* start, char* end) //C++17
             removeNotInterestingHeaders();      // 过滤不关心的头
             if (expectingContinue_) {
                 static const char* response = "HTTP/1.1 100 Continue\r\n\r\n";
-                client_->write(response, strlen(response), TCP_WRITE_FLAG_MORE);
+                client_->add(response, strlen(response));
             }
             if (contentLength_) {
                 parseState_ = PARSE_REQ_BODY;
@@ -413,7 +413,7 @@ void AsyncWebServerRequest::parseReqLine(char* start, char* end)
         url_.assign(url_start, space2 - url_start);
     }
 
-    if (memcmp((void*)(space2 + 1), "HTTP/1.0", 8) == 0) {
+    if (memcmp((void*)(space2 + 1), "HTTP/1.1", 8) == 0) {
         version_ = 1;
     }
 }
@@ -562,7 +562,6 @@ bool AsyncWebServerRequest::parseReqHeader(const char* start, const char* end)
         size_t name_len = colon - start;
         if (name_len > 63)  return false;   // 正常请求头不超过该值的
         uint32_t hash_code = name_len;
-        char* hash_str = (char*)(&hash_code);
         hash_code |= (name_len > 2 ? tolower(start[2]) : '\0') << 8;
         hash_code |= (name_len > 1 ? tolower(start[1]) : '\0') << 16;
         hash_code |= tolower(start[0]) << 24;
@@ -1202,7 +1201,7 @@ AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(std::string content
 /// @param templateCallback 模板处理函数
 AsyncWebServerResponse* AsyncWebServerRequest::beginChunkedResponse(std::string contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback)
 {
-    if (version_) {
+    if (version_ == 1) {
         return new AsyncChunkedResponse(std::move(contentType), std::move(callback), std::move(templateCallback));
     }
     return new AsyncCallbackResponse(std::move(contentType), 0, std::move(callback), std::move(templateCallback));

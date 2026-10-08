@@ -1,7 +1,7 @@
 #include "WebAuthentication.h"
 #include <string.h>
-#include "mbedtls/base64.h"
-#include "mbedtls/md5.h"
+#include "psa/crypto.h"
+#include <mbedtls/base64.h>
 
 #define base64_cacl_len(x)  (((x + 2) / 3) * 4)
 
@@ -51,26 +51,32 @@ bool checkBasicAuthentication(const char * hash, const char * username, const ch
 /// @param len 输入数据长度
 /// @param output MD5值班输出u位置
 /// @return 输出成功返回true
-static bool getMD5(uint8_t * data, uint16_t len, char * output)
+static bool getMD5(uint8_t * data, uint16_t len, std::string& out)
 {
-    mbedtls_md5_context _ctx;
+    psa_algorithm_t alg = PSA_ALG_MD5;
+    const size_t hash_len = PSA_HASH_LENGTH(alg);
+    uint8_t hash[16];
+    size_t actual_len = 0;
 
-    uint8_t i;
-    uint8_t* _buf = new uint8_t[16];      // MD5长度为16字节
-    if (_buf == nullptr) {
+    auto status = psa_hash_compute(
+        alg,
+        data,       // 输入数据
+        len,        // 输入长度
+        hash,       // 输出缓冲区
+        sizeof(hash),         // 缓冲区大小（MD5长度为16）
+        &actual_len // 实际长度
+    );
+
+    if (actual_len != hash_len || status != PSA_SUCCESS) {
         return false;
     }
-    memset(_buf, 0x00, 16);
 
-    mbedtls_md5_init(&_ctx);                // md5计算步骤1.1：初始化上下文
-    mbedtls_md5_starts(&_ctx);              // md5计算步骤1.2：开始计算
-    mbedtls_md5_update(&_ctx, data, len);   // md5计算步骤2：逐块更新数据
-    mbedtls_md5_finish(&_ctx, _buf);        // md5计算步骤3：获取最终哈希值
-
-    for (i = 0; i < 16; i++) {
-        sprintf(output + (i * 2), "%02x", _buf[i]);
+    out.reserve(hash_len * 2);
+    char* dst = out.data();
+    for (size_t i = 0; i < hash_len; i++) {
+        snprintf(dst + (i << 1), 3, "%02x", hash[i]);
     }
-    delete[] _buf;
+
     return true;
 }
 
@@ -78,14 +84,13 @@ static bool getMD5(uint8_t * data, uint16_t len, char * output)
 /// @return MD5值
 static std::string genRandomMD5()
 {
-    uint32_t r = rand();
-    char* out = new char[33];     // MD5为16位二进制，其转化为字条串需33字节
-    if (out == nullptr || !getMD5((uint8_t *)(&r), 4, out)) {
-        return "";
+    std::string str;
+    uint32_t seed = rand();
+    if (getMD5((uint8_t *)(&seed), sizeof(seed), str)) {
+        return str;
     }
-    std::string str = std::string(out);
-    delete[] out;
-    return str;
+
+    return "";
 }
 
 /// @brief 计算指定字符串的MD5值
@@ -93,13 +98,12 @@ static std::string genRandomMD5()
 /// @return 成功返回MD5值，失败返回空字符串
 static std::string stringMD5(const std::string &in)
 {
-    char* out = new char[33];
-    if (out == nullptr || !getMD5((uint8_t *)(in.c_str()), in.length(), out)) {
-        return empty_string;
+    std::string str;
+    if (getMD5((uint8_t *)(in.c_str()), in.length(), str)) {
+        return str;
     }
-    std::string str = std::string(out);
-    delete[] out;
-    return str;
+
+    return "";
 }
 
 /// @brief
@@ -112,20 +116,19 @@ std::string generateDigestHash(const char * username, const char * password, con
     if (username == nullptr || password == nullptr || realm == nullptr) {
         return empty_string;
     }
-    char* out = new char[33];
     std::string res = std::string(username);
     res += ':';
     res += std::string(realm);
     res += ':';
     res += std::string(password);
 
-    std::string in = res;
-    if (out == nullptr || !getMD5((uint8_t *)(in.c_str()), in.length(), out)) {
-        return empty_string;
+    std::string str;
+    if (getMD5((uint8_t *)(res.c_str()), res.length(), str)) {
+        res += str;
+        return res;
     }
-    res += out;
-    delete[] out;
-    return res;
+
+    return "";
 }
 
 std::string requestDigestAuthentication(const char * realm)

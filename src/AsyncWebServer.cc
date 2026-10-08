@@ -8,7 +8,7 @@
 #define TAG "AsyncWebServer"
 
 AsyncWebServer::AsyncWebServer(uint16_t port)
-    : server_(port)
+    : server_(IPADDR4_INIT(0), port)
     , rewrites_(LinkedList<AsyncWebRewrite*>([](AsyncWebRewrite* rewrite){ delete rewrite; }))
     , handlers_(LinkedList<AsyncWebHandler*>([](AsyncWebHandler* handler){ delete handler; }))
 {
@@ -31,8 +31,8 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
         },
         this
     );
-    server_.set_clean_handler([](void* arg){
-        auto* self = reinterpret_cast<AsyncWebServer*>(arg);
+    server_.set_clean_handler([](void* ctx){
+        auto* self = reinterpret_cast<AsyncWebServer*>(ctx);
         auto* head = self->pool_.exchange(nullptr);
         if (head != nullptr) {
             auto* current = head->next_;
@@ -43,8 +43,9 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
             }
             head->next_ = nullptr;
             self->recycleRequest(head);
-        }
-    }, this);
+        }}, 
+        this
+    );
     
     recycleRequest(new AsyncWebServerRequest());
 }

@@ -212,7 +212,7 @@ private:
 
     char*                   fileName_{nullptr};   
     AsyncWebServerRequest*  next_;                      // 下一请求
-    AsyncClient*            client_;                    // 关联的连接
+    AsyncClient*        client_;                    // 关联的连接
     AsyncWebServer*         server_;                    // 关联的服务器
     AsyncWebHandler*        handler_{nullptr};          // 处理该请求的处理器
     AsyncWebServerResponse* response_{nullptr};         // 当前请求的响应对象

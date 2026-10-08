@@ -1,6 +1,6 @@
 #include "AsyncWebSocketResponse.h"
-#include "mbedtls/sha1.h"
 #include "mbedtls/base64.h"
+#include "psa/crypto.h"
 #include "../request/AsyncWebServerRequest.h"
 #include "../socket/AsyncWebSocketClient.h"
 
@@ -15,7 +15,6 @@ AsyncWebSocketResponse::AsyncWebSocketResponse(const std::string& key, AsyncWebS
         state_ = RESPONSE_FAILED;
         return;
     }
-
     auto* buffer = new char[33];
     if (buffer == nullptr) {
         delete[] hash;
@@ -24,15 +23,40 @@ AsyncWebSocketResponse::AsyncWebSocketResponse(const std::string& key, AsyncWebS
     }
 
     (std::string &)key += std::string(WS_STR_UUID);
-    mbedtls_sha1_context    ctx;
-    mbedtls_sha1_init(&ctx);
-    mbedtls_sha1_starts(&ctx);
-    mbedtls_sha1_update(&ctx, (const unsigned char*)key.c_str(), key.length());
-    mbedtls_sha1_finish(&ctx, hash);
-    mbedtls_sha1_free(&ctx);
 
-    size_t encodeLength = 0;
-    mbedtls_base64_encode((u_char*)buffer, 33, &encodeLength, hash, 20);
+    // PSA计算SHA-1 哈希
+    psa_algorithm_t alg = PSA_ALG_SHA_1;
+    const size_t hash_len = PSA_HASH_LENGTH(alg);
+    size_t actual_len = 0;
+    auto status = psa_hash_compute(
+        alg,
+        reinterpret_cast<const uint8_t*>(key.data()),
+        key.size(),
+        hash,
+        20,
+        &actual_len
+    );
+    if( status != PSA_SUCCESS || actual_len != hash_len) {
+        state_ = RESPONSE_FAILED;
+        return;
+    }
+
+    // Base64编码
+    size_t encoded_len = 0;
+    auto ret = mbedtls_base64_encode(
+        reinterpret_cast<unsigned char*>(buffer),
+        sizeof(buffer),
+        &encoded_len,
+        hash,
+        actual_len
+    );
+    if (ret != 0 || encoded_len >= sizeof(buffer)) {
+        state_ = RESPONSE_FAILED;
+        return;
+    }
+    buffer[encoded_len] = '\0'; // 确保字符串终止
+
+
     addHeader(WS_STR_CONNECTION, WS_STR_UPGRADE);   // 添加响应头：声明协议升级
     addHeader(WS_STR_UPGRADE, "websocket");         // 
     addHeader(WS_STR_ACCEPT, buffer);               // 添加响应头：根据客户端key计算的响应值
@@ -47,8 +71,8 @@ void AsyncWebSocketResponse::respond(AsyncWebServerRequest* req)
         req->client_->close();
         return;
     }
-    std::string out = assembleHead(req->version_);
-    req->client_->write(out.c_str(), headLength_);
+    std::string out = assembleHead(req->version_); 
+    req->client_->add(out.c_str(), headLength_);
     state_ = RESPONSE_WAIT_ACK;
 }
 

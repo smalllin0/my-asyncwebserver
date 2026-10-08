@@ -26,38 +26,40 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest* req, AsyncWebS
     lastMessageTime_ = SystemInfo::GetMsSinceStart();
     keepAlivePeriod_ = 0;
     client_->set_rx_timeout_second(0);
-    client_->set_data_received_handler([](void* client, void* buf, size_t len) {
-            ((AsyncWebSocketClient*)client)->onData(buf, len);
+
+    client_->set_data_received_handler([](void* ctx, void* buf, size_t len){
+            ((AsyncWebSocketClient*)ctx)->onData((void*)buf, len);
         },
         this
     );
-    client_->set_error_event_handler([](void* arg, err_t error) {
-            auto* client = reinterpret_cast<AsyncWebSocketClient*>(arg);
-            ESP_LOGE(TAG, "Client error: client id=%d, error=%s.", client->id_, esp_err_to_name(error));
-        }, this);
-
-    client_->set_ack_event_handler([](void* client, size_t len, uint32_t time) {
-            ((AsyncWebSocketClient*)client)->onAck(len, time);
-        },
+    client_->set_error_event_handler([](void* ctx, int8_t error) {
+            ESP_LOGE(TAG, "Client error: client id=%d, error=%s.", 
+                ((AsyncWebSocketClient*)ctx)->id_, esp_err_to_name(error));
+        }, 
+        this
+    );
+    client_->set_ack_event_handler([](void* ctx, size_t len, uint32_t elapsed_ms){
+            ((AsyncWebSocketClient*)ctx)->onAck(len, elapsed_ms);
+        }, 
         this
     );
 
     // 重围断开业务处理回调，（由于接管req，必须重围）
     client_->set_disconnected_event_handler(nullptr, nullptr);
     // 超时将关闭底层连接、销毁本对象
-    client_->set_timeout_event_handler([](void* arg, uint32_t time) {
-            auto* self = (AsyncWebSocketClient*)arg;
+    client_->set_timeout_event_handler([](void* ctx, uint32_t time) {
+            auto* self = (AsyncWebSocketClient*)ctx;
             self->socket_->handleEvent(self, WS_EVT_DISCONNECT, nullptr, nullptr, 0);
             self->messageQueue_.free();
             self->controlQueue_.free();
             auto* client = (AsyncClient*)self;
             client->close();
-        },
+        }, 
         this
     );
-    client_->set_poll_event_handler([](void* client) {
-            ((AsyncWebSocketClient*)client)->onPoll();
-        },
+    client_->set_poll_event_handler([](void* ctx){
+            ((AsyncWebSocketClient*)ctx)->onPoll();
+        }, 
         this
     );
     // 重置回收回调----不回收socket对象
@@ -266,7 +268,7 @@ inline void AsyncWebSocketClient::onData(void* pbuf, size_t buf_len)
                         client_->close();
                     } else {
                         status_ = WS_DISCONNECTING;
-                        client_->set_defer_ack(false);
+                        // client_->SetDeferAck(false);
                         queueControl(new AsyncWebSocketControl(WS_DISCONNECT, data, data_len));
                     }
                     break;
