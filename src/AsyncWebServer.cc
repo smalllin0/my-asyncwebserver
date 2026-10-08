@@ -17,13 +17,13 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
         ESP_LOGE(TAG, "创建通用处理器失败");
         return;
     }
-    server_.set_connected_handler([](void* server, AsyncClient* client){
+    server_.OnAccept([](void* server, AsyncConnection* client){
             if (client == nullptr) {
                 return;
             }
             auto* self = reinterpret_cast<AsyncWebServer*>(server);
 
-            client->set_rx_timeout_second(3);
+            client->SetRxTimeout(3);
             auto* req = self->allocateRequest(client);
             if (req == nullptr) {
                 client->close();
@@ -31,7 +31,7 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
         },
         this
     );
-    server_.set_clean_handler([](void* ctx){
+    server_.OnCleanup([](void* ctx){
         auto* self = reinterpret_cast<AsyncWebServer*>(ctx);
         auto* head = self->pool_.exchange(nullptr);
         if (head != nullptr) {
@@ -223,7 +223,7 @@ void AsyncWebServer::internalHandleDisconnect(AsyncWebServerRequest* req)
 }
 
 
-AsyncWebServerRequest* AsyncWebServer::allocateRequest(AsyncClient* client)
+AsyncWebServerRequest* AsyncWebServer::allocateRequest(AsyncConnection* client)
 {
     AsyncWebServerRequest* req;
     AsyncWebServerRequest* expected;

@@ -25,11 +25,11 @@ public:
     ~AsyncWebServer();
     
     void begin() {
-        server_.set_nodelay(true);
-        server_.begin();
+        server_.SetNoDelay(true);
+        server_.Begin();
     }
     void end() {
-        server_.end();
+        server_.End();
     }
     void reset() {
         rewrites_.free();
@@ -39,8 +39,8 @@ public:
             defaultHandler_->onUpload(nullptr);
             defaultHandler_->onBody(nullptr);
         }
-        server_.set_connected_handler(nullptr, nullptr);
-        server_.set_clean_handler(nullptr, nullptr);
+        server_.OnAccept(nullptr, nullptr);
+        server_.OnCleanup(nullptr, nullptr);
     }
     void recycleRequest(AsyncWebServerRequest* req);
 
@@ -66,7 +66,7 @@ public:
 protected:
     friend class AsyncWebServerRequest;
 
-    AsyncWebServerRequest* allocateRequest(AsyncClient* client);
+    AsyncWebServerRequest* allocateRequest(AsyncConnection* client);
     void internalHandleDisconnect(AsyncWebServerRequest* req);
     void internalAttachHandler(AsyncWebServerRequest* req);
     void internalRewriteRequest(AsyncWebServerRequest* req);

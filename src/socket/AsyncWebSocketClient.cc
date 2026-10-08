@@ -25,7 +25,7 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest* req, AsyncWebS
     pstate_ = WS_PARSE_HEAD;            
     lastMessageTime_ = SystemInfo::GetMsSinceStart();
     keepAlivePeriod_ = 0;
-    client_->set_rx_timeout_second(0);
+    client_->SetRxTimeout(0);
 
     client_->set_data_received_handler([](void* ctx, void* buf, size_t len){
             ((AsyncWebSocketClient*)ctx)->onData((void*)buf, len);
@@ -52,7 +52,7 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest* req, AsyncWebS
             self->socket_->handleEvent(self, WS_EVT_DISCONNECT, nullptr, nullptr, 0);
             self->messageQueue_.free();
             self->controlQueue_.free();
-            auto* client = (AsyncClient*)self;
+            auto* client = (AsyncConnection*)self;
             client->close();
         }, 
         this
@@ -299,7 +299,7 @@ inline void AsyncWebSocketClient::onData(void* pbuf, size_t buf_len)
 
 inline void AsyncWebSocketClient::onPoll()
 {
-    if (client_->get_send_buffer_size() && ((!controlQueue_.isEmpty())||(!messageQueue_.isEmpty()))) {
+    if (client_->SendBufferSize() && ((!controlQueue_.isEmpty())||(!messageQueue_.isEmpty()))) {
         runQueue();
     } else if (keepAlivePeriod_ && controlQueue_.isEmpty() && messageQueue_.isEmpty() 
         && SystemInfo::Timeout(lastMessageTime_, keepAlivePeriod_)) {
@@ -370,7 +370,7 @@ void AsyncWebSocketClient::queueMessage(AsyncWebSocketMessage* message)
         messageQueue_.add(message);
     }
 
-    if (client_->get_send_buffer_size()) {
+    if (client_->SendBufferSize()) {
         runQueue();
     }
 }
@@ -383,7 +383,7 @@ void AsyncWebSocketClient::queueControl(AsyncWebSocketControl* control)
     }
 
     controlQueue_.add(control);
-    if (client_->get_send_buffer_size()) {
+    if (client_->SendBufferSize()) {
         runQueue();
     }
 }
@@ -397,12 +397,12 @@ void AsyncWebSocketClient::runQueue()
 
     if (!controlQueue_.isEmpty()                                                            // 存在控制帧
     && (messageQueue_.isEmpty() || messageQueue_.front()->betweenFrames())                  // 不存在消息帧、消息帧处于帧间态（不在发送中）
-    && (client_->get_send_buffer_size() >= controlQueue_.front()->len() + 6)) {             // 为简化发送，只在可一次性发送控制帧时才发送(payload+2+4)
+    && (client_->SendBufferSize() >= controlQueue_.front()->len() + 6)) {             // 为简化发送，只在可一次性发送控制帧时才发送(payload+2+4)
     // && webSocketSendFrameWindow(client_) > (size_t)(controlQueue_.front()->len() - 1)) {    // 可以发送整个控制帧（控制帧不能分片！）
         controlQueue_.front()->send(client_);
     } else if (!messageQueue_.isEmpty()                 // 存在消息帧
             && messageQueue_.front()->betweenFrames()   // 消息帧处于帧间状态
-            && client_->get_send_buffer_size()) {       // 有发送空间
+            && client_->SendBufferSize()) {       // 有发送空间
         messageQueue_.front()->send(client_);
     }
 }
@@ -413,13 +413,13 @@ ip_addr_t AsyncWebSocketClient::remoteIP()
     if (client_ == nullptr) {
         return IPADDR4_INIT(0);
     }
-    return client_->get_remote_IP();
+    return client_->GetRemouteIp();
 }
 
 /// @brief 获取对端Port
 uint16_t AsyncWebSocketClient::remotePort()
 {
-    return client_ == nullptr ? 0 : client_->get_remote_port();
+    return client_ == nullptr ? 0 : client_->GetRemotePort();
 }
 
 

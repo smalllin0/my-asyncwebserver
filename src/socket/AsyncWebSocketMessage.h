@@ -3,7 +3,7 @@
 
 #include "sys/_stdint.h"
 #include "stddef.h"
-#include "AsyncClient.h"
+#include "AsyncConnection.h"
 
 typedef enum {
     WS_MSG_SENDING,     // 消息分片发送中
@@ -19,7 +19,7 @@ typedef enum {
     WS_PONG = 0x0A          // Pong帧(RFC 6455规范)
 } AwsFrameType;
 
-class AsyncClient;
+class AsyncConnection;
 
 class AsyncWebSocketMessage {
 protected:
@@ -34,12 +34,12 @@ public:
         , mask_(false)
     {}
     virtual ~AsyncWebSocketMessage(){}
-    size_t webSocketSendFrameWindow(AsyncClient* client) {
-        size_t space = client->get_send_buffer_size();
+    size_t webSocketSendFrameWindow(AsyncConnection* client) {
+        size_t space = client->SendBufferSize();
         return space < 9 ? 0 : space - 8;
     }
     virtual void ack(size_t len, uint32_t time) {}
-    virtual size_t send(AsyncClient* client) { return 0; }
+    virtual size_t send(AsyncConnection* client) { return 0; }
     virtual bool finished() { return status_ != WS_MSG_SENDING; }
     virtual bool betweenFrames() const { return false; }
 

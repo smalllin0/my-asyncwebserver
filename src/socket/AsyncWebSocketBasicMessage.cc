@@ -62,7 +62,7 @@ void AsyncWebSocketBasicMessage::ack(size_t len, uint32_t time)
 /// @brief 发送WebSocket消息
 /// @param client
 /// @return 发送的字节数
-size_t AsyncWebSocketBasicMessage::send(AsyncClient* client)
+size_t AsyncWebSocketBasicMessage::send(AsyncConnection* client)
 {
     if (status_ != WS_MSG_SENDING) {
         return 0;

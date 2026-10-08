@@ -6,11 +6,11 @@
 #include "../StringArray.h"
 #include "lwip/err.h"
 #include "../handler/AsyncStaticWebHandler.h"
-#include "AsyncClient.h"
+#include "AsyncConnection.h"
 
 
 
-class AsyncClient;
+class AsyncConnection;
 class AsyncWebServer;
 class AsyncWebServerRequest;
 class AsyncWebServerResponse;
@@ -62,13 +62,13 @@ using AwsResponseFiller = std::function<size_t(uint8_t* buffer, size_t maxLen, s
 class AsyncWebServerRequest {
 public:
     AsyncWebServerRequest();
-    // AsyncWebServerRequest(AsyncWebServer* server, AsyncClient* client);
+    // AsyncWebServerRequest(AsyncWebServer* server, AsyncConnection* client);
 
 
     void onDisconnect(ArDisconnectHandler fn) {
         onDisconnectfn_ = fn;
     }
-    AsyncClient* client() {
+    AsyncConnection* client() {
         return client_;
     }
     uint8_t version() const {
@@ -178,7 +178,7 @@ private:
         reset();
     }
 
-    void init(AsyncWebServer* server, AsyncClient* client);
+    void init(AsyncWebServer* server, AsyncConnection* client);
     void reset();
     inline void onPoll();
     inline void onAck(size_t len, uint32_t time);
@@ -212,7 +212,7 @@ private:
 
     char*                   fileName_{nullptr};   
     AsyncWebServerRequest*  next_;                      // 下一请求
-    AsyncClient*        client_;                    // 关联的连接
+    AsyncConnection*        client_;                    // 关联的连接
     AsyncWebServer*         server_;                    // 关联的服务器
     AsyncWebHandler*        handler_{nullptr};          // 处理该请求的处理器
     AsyncWebServerResponse* response_{nullptr};         // 当前请求的响应对象

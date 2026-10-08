@@ -35,7 +35,7 @@ void AsyncWebSocketMultiMessage::ack(size_t len, uint32_t time)
     }
 }
 
-size_t AsyncWebSocketMultiMessage::send(AsyncClient* client)
+size_t AsyncWebSocketMultiMessage::send(AsyncConnection* client)
 {
     if (status_ != WS_MSG_SENDING ) { return 0; }
     if (acked_ < ack_) { return 0; }    // 等待上一帧被接收才能发送

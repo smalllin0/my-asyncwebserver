@@ -2,7 +2,7 @@
 #include "../header/AsyncWebHeader.h"
 #include "../header/DefaultHeaders.h"
 #include "../request/AsyncWebServerRequest.h"
-#include "AsyncClient.h"
+#include "AsyncConnection.h"
 
 const char * WS_STR_CONNECTION = "Connection";
 const char * WS_STR_UPGRADE = "Upgrade";

@@ -36,7 +36,7 @@ public:
     virtual bool finished() const { return finished_; }
     uint8_t opcode() { return opcode_; }
     size_t len() {return len_ + 2; }
-    size_t send(AsyncClient* c) {
+    size_t send(AsyncConnection* c) {
         finished_ = true;
         return webSocketSendFrame(c, true, opcode_ & 0x0f, mask_, data_, len_);
     }

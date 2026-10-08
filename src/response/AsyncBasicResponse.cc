@@ -1,6 +1,6 @@
 #include "AsyncBasicResponse.h"
 #include "../request/AsyncWebServerRequest.h"
-#include "AsyncClient.h"
+#include "AsyncConnection.h"
 #include <string>
 
 
@@ -45,7 +45,7 @@ size_t AsyncBasicResponse::ack(AsyncWebServerRequest *req, size_t len, uint32_t 
     }
 
     size_t totalSent = 0;
-    size_t space = client_->get_send_buffer_size();
+    size_t space = client_->SendBufferSize();
 
 
     if (state_ == RESPONSE_HEADERS) {

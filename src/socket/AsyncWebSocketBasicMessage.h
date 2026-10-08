@@ -2,7 +2,7 @@
 #define ASYNCWEBSOCKETBASICMESSAGE_H_
 
 #include "AsyncWebSocketMessage.h"
-#include "AsyncClient.h"
+#include "AsyncConnection.h"
 #include "AsyncSendFrame.h"
 
 /// @brief 普通文本/二进制消息
@@ -20,7 +20,7 @@ public:
     virtual bool betweenFrames() const override { return acked_ == ack_; }
     virtual ~AsyncWebSocketBasicMessage() override;
     virtual void ack(size_t len, uint32_t time) override;
-    virtual size_t send(AsyncClient* client) override;
+    virtual size_t send(AsyncConnection* client) override;
     
 };
 

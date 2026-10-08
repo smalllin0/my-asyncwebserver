@@ -1,6 +1,6 @@
 #include "AsyncAbstractResponse.h"
 #include "../request/AsyncWebServerRequest.h"
-#include "AsyncClient.h"
+#include "AsyncConnection.h"
 
 AsyncAbstractResponse::AsyncAbstractResponse(AwsTemplateProcessor cb)
     : callback_(cb)
@@ -39,7 +39,7 @@ size_t AsyncAbstractResponse::ack(AsyncWebServerRequest* req, size_t len,  uint3
 
     
     size_t sent_bytes = 0;
-    auto space = client->get_send_buffer_size();
+    auto space = client->SendBufferSize();
     if (state_ == RESPONSE_HEADERS) {
         auto headerRemaining = header_length - headerSent_;
         if (headerRemaining > 0) {

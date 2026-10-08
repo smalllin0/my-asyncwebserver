@@ -12,7 +12,7 @@ public:
     virtual ~AsyncWebSocketMultiMessage() override;
     virtual bool betweenFrames() const override { return acked_ == ack_; }
     virtual void ack(size_t len, uint32_t time) override;
-    virtual size_t send(AsyncClient* client) override;
+    virtual size_t send(AsyncConnection* client) override;
 
 
 private:

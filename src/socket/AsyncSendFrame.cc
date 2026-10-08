@@ -1,4 +1,4 @@
-#include "AsyncClient.h"
+#include "AsyncConnection.h"
 #include "esp_log.h"
 
 #define TAG "SendFrame"
@@ -11,7 +11,7 @@
 /// @param data 数据指针
 /// @param len 计划发送的字节数
 /// @return 发送数据的长度
-size_t webSocketSendFrame(AsyncClient* client, bool final, uint8_t opcode, bool mask, uint8_t* data, size_t len)
+size_t webSocketSendFrame(AsyncConnection* client, bool final, uint8_t opcode, bool mask, uint8_t* data, size_t len)
 {
 
     uint8_t     head_len;
@@ -27,7 +27,7 @@ size_t webSocketSendFrame(AsyncClient* client, bool final, uint8_t opcode, bool 
         head_len = mask ? 6 : 2;
     }
 
-    size_t space = client->get_send_buffer_size();
+    size_t space = client->SendBufferSize();
     if (space >= head_len) {
 
         auto send_len = std::min(len, space - head_len);

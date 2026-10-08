@@ -53,7 +53,7 @@ AsyncWebServerRequest::AsyncWebServerRequest()
     , pathParams_(LinkedList<std::string*>([](std::string* path){ delete path; }))
 { }
 
-void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncClient* client)
+void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncConnection* client)
 {
     next_       = nullptr;
     client_     = client;
@@ -176,7 +176,7 @@ void AsyncWebServerRequest::onPoll()
 {
     if (response_ != nullptr
             && client_ != nullptr
-            && client_->get_send_buffer_size()
+            && client_->SendBufferSize()
             && !(response_->finished())) {
         response_->ack(this, 0, 0);
     }
@@ -988,7 +988,7 @@ void AsyncWebServerRequest::send(AsyncWebServerResponse* response)
     }
     
     if (response_->sourceValid()) {
-        client_->set_rx_timeout_second(0);
+        client_->SetRxTimeout(0);
         response_->respond(this);
     } else {
         delete response_;
