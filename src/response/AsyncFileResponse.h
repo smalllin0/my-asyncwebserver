@@ -1,25 +1,27 @@
 #ifndef ASYNCFILERESPONSE_H_
 #define ASYNCFILERESPONSE_H_
 
-#include "AsyncAbstractResponse.h"
+#include "AsyncWebServerResponse.h"
 #include <string>
 #include <stdio.h>
 
-class AsyncFileResponse : public AsyncAbstractResponse {
+class AsyncWebServerRequest;
+
+class AsyncFileResponse : public AsyncWebServerResponse {
 public:
-    AsyncFileResponse(std::string path, std::string contentType=empty_string, bool download=false, AwsTemplateProcessor cb=nullptr);
+    AsyncFileResponse(std::string path, std::string contentType = empty_string,
+                      bool download = false, AwsTemplateProcessor cb = nullptr);
     ~AsyncFileResponse();
-    inline bool sourceValid() const {
-        return file_ != nullptr;
-    }
-    inline virtual size_t fillBuffer(uint8_t* buf, size_t maxLen) override {
-        return fread(buf, sizeof(uint8_t), maxLen, file_);
-    }
+    void respond(AsyncWebServerRequest* req) override;
+    bool sourceValid() const override { return file_ != nullptr; }
+
 private:
     void setContentType(const std::string& path);
+    void pump();
 
-    FILE        *file_;
-    std::string path_;
+    FILE*           file_{nullptr};
+    std::string     path_;
+    size_t          readLength_{0};
 };
 
 #endif

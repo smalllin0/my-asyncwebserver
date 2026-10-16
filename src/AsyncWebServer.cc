@@ -26,7 +26,7 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
             client->SetRxTimeout(3);
             auto* req = self->allocateRequest(client);
             if (req == nullptr) {
-                client->close();
+                client->Close();
             }
         },
         this
@@ -218,7 +218,7 @@ void AsyncWebServer::internalAttachHandler(AsyncWebServerRequest* req)
 void AsyncWebServer::internalHandleDisconnect(AsyncWebServerRequest* req)
 {
     if (req != nullptr) {
-        req->client_->close();
+        req->client()->Close();
     }
 }
 

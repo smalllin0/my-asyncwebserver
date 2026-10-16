@@ -4,16 +4,15 @@
 #include "AsyncWebServerResponse.h"
 
 class AsyncWebSocket;
+class AsyncWebServerRequest;
 
 class AsyncWebSocketResponse : public AsyncWebServerResponse {
 public:
-    AsyncWebSocketResponse(const std::string &key, AsyncWebSocket* server);
-    void respond(AsyncWebServerRequest* req);
-    virtual size_t ack(AsyncWebServerRequest* req, size_t len, uint32_t time) override;
-    bool sourceValid() const { return true; }
+    AsyncWebSocketResponse(const std::string& key, AsyncWebSocket* server);
+    void respond(AsyncWebServerRequest* req) override;
+    bool sourceValid() const override { return state_ != RESPONSE_FAILED; }
 
 private:
-    std::string     content_;
     AsyncWebSocket* socket_;
 };
 

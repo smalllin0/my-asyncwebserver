@@ -3,98 +3,36 @@
 #include "AsyncConnection.h"
 #include <string>
 
-
-AsyncBasicResponse::AsyncBasicResponse(uint16_t code, const std::string& contentType, const std::string& content)
+AsyncBasicResponse::AsyncBasicResponse(uint16_t code, const std::string& contentType,
+                                       const std::string& content)
     : AsyncWebServerResponse(code, contentType)
-    , headerSent_(0)
-    , countentSent_(0)
     , content_(content)
 {
     contentLength_ = content_.length();
-    if (contentLength_) {
-        if(!contentType_.length()) {
-            contentType_ = "text/plain";
-        }
+    if (contentLength_ && contentType_.empty()) {
+        contentType_ = "text/plain";
     }
     addHeader("Connection", "close");
 }
 
-/// @brief 将基本响应发送出去
-/// @param req
-inline void AsyncBasicResponse::respond(AsyncWebServerRequest* req)
+void AsyncBasicResponse::respond(AsyncWebServerRequest* req)
 {
-    if (state_ != RESPONSE_SETUP) {
-        return;
-    }
-    state_ = RESPONSE_HEADERS;
-    header_ = assembleHead(req->version_);
-    
-    // 立即尝试发送
-    ack(req, 0, 0);
+    if (state_ != RESPONSE_SETUP) return;
+    state_ = RESPONSE_CONTENT;
+
+    req_ = req;
+    client_ = req->client();
+    header_ = assembleHead(req->version());
+
+    // ★ COPY：response 会在 OnDrain 后删除，必须保证数据独立
+    client_->Append(header_.c_str(), header_.length(),
+                    TCP_WRITE_FLAG_COPY | TCP_WRITE_FLAG_MORE);
+    client_->Append(content_.c_str(), content_.length(),
+                    TCP_WRITE_FLAG_COPY);
+
+    client_->OnDrain([](void* ctx) {
+        static_cast<AsyncBasicResponse*>(ctx)->finish();
+    }, this);
+
+    client_->Flush();
 }
-
-
-size_t AsyncBasicResponse::ack(AsyncWebServerRequest *req, size_t len, uint32_t time)
-{
-    ackedLength_ += len;
-    auto* client_ = req->client_;
-    if (!sourceValid()) {
-        state_ = RESPONSE_FAILED;
-        client_->close();
-        return 0;
-    }
-
-    size_t totalSent = 0;
-    size_t space = client_->SendBufferSize();
-
-
-    if (state_ == RESPONSE_HEADERS) {
-        auto headerRemaining = header_.length() - headerSent_;
-        if (headerRemaining > 0) {
-            auto toSend = std::min(headerRemaining, space);
-            const char* data = header_.c_str() + headerSent_;
-            size_t sent = client_->add(data, toSend);
-            if (sent) {
-                headerSent_ += sent;
-                totalSent += sent;
-                writtenLength_ += sent;
-            }
-        }
-
-        if (headerSent_ >= header_.length()) {
-            state_ = RESPONSE_CONTENT;
-            space -= totalSent;
-        } else {
-            client_->send();
-            return totalSent;
-        }
-        
-    }
-
-    if (state_ == RESPONSE_CONTENT) {
-        auto contentRemaining = content_.length() - countentSent_;
-        if (contentRemaining > 0 && space) {
-            auto toSend = std::min(contentRemaining, space);
-            const char* data = content_.c_str() + countentSent_;
-            auto sent = client_->add(data, toSend);
-            if (sent) {
-                countentSent_ += sent;
-                sentLength_ += sent;
-                writtenLength_ += sent;
-            }
-        }
-
-        if (countentSent_ >= content_.length()) {
-            state_ = RESPONSE_WAIT_ACK;
-        }
-    }
-
-    if (state_ == RESPONSE_WAIT_ACK) {
-        if (ackedLength_ >= writtenLength_) {
-            state_ = RESPONSE_END;
-        }
-    }
-
-    client_->send();
-    return totalSent;
-} 

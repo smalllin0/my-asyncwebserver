@@ -18,10 +18,7 @@ AsyncWebServerResponse::AsyncWebServerResponse(uint16_t code, const std::string&
     , chunked_(false)
     , code_(code)
     , contentLength_(0)
-    , headLength_(0)
     , sentLength_(0)
-    , ackedLength_(0)
-    , writtenLength_(0)
     , state_(RESPONSE_SETUP)
     , contentType_(contentType)
     , headers_(LinkedList<AsyncWebHeader*>([](AsyncWebHeader* h){ delete h; }))
@@ -36,8 +33,6 @@ AsyncWebServerResponse::~AsyncWebServerResponse()
     headers_.free();
 }
 
-
-/// @brief 组装响应头部（会添加换行\r\n）
 std::string AsyncWebServerResponse::assembleHead(uint8_t version)
 {
     if (version) {
@@ -48,7 +43,7 @@ std::string AsyncWebServerResponse::assembleHead(uint8_t version)
     }
 
     std::string out;
-    out.reserve(512);       //预先分配部分内存
+    out.reserve(512);
 
     out += version == 0 ? "HTTP/1.0 " : "HTTP/1.1 ";
     out += std::to_string(code_);
@@ -61,14 +56,14 @@ std::string AsyncWebServerResponse::assembleHead(uint8_t version)
         out += std::to_string(contentLength_);
         out += "\r\n";
     }
-    
+
     if (!contentType_.empty()) {
         out += "Content-Type: ";
         out += contentType_;
         out += "\r\n";
     }
 
-    for(const auto& header : headers_) {
+    for (const auto& header : headers_) {
         out += header->name();
         out += ": ";
         out += header->value();
@@ -76,7 +71,6 @@ std::string AsyncWebServerResponse::assembleHead(uint8_t version)
     }
     headers_.free();
     out += "\r\n";
-    headLength_ = out.length();
 
     return out;
 }
@@ -87,11 +81,24 @@ void AsyncWebServerResponse::addHeader(std::string name, std::string value) {
 
 void AsyncWebServerResponse::respond(AsyncWebServerRequest* req) {
     state_ = RESPONSE_END;
-    req->client_->close();
+    req->client()->Close();
 }
 
+void AsyncWebServerResponse::finish()
+{
+    auto* r = req_;
+    req_ = nullptr;
 
-/// @brief 将HTTP状态码转化为字符串
+    // ★ 先主动关闭底层连接（发 FIN）
+    //   必须在删 response 之前，因为 close 需要 client_ 有效
+    if (client_) {
+        client_->Close();       
+    }
+
+    // ★ 再通知 request 删除自己
+    if (r) r->finishResponse();
+}
+
 const char* AsyncWebServerResponse::responseCodeToString(uint16_t code)
 {
     switch (code) {

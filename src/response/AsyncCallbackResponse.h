@@ -1,17 +1,25 @@
 #ifndef ASYNCCALLBACKRESPONSE_H_
 #define ASYNCCALLBACKRESPONSE_H_
 
-#include "AsyncAbstractResponse.h"
+#include "AsyncWebServerResponse.h"
 #include <string>
 
-class AsyncCallbackResponse : public AsyncAbstractResponse {
+class AsyncWebServerRequest;
+
+class AsyncCallbackResponse : public AsyncWebServerResponse {
 public:
-    AsyncCallbackResponse(const std::string &contentType, size_t len, AwsResponseFiller cb, AwsTemplateProcessor templateCb = nullptr);
-    inline bool sourceValid() const;
-    virtual size_t fillBuffer(uint8_t* buf, size_t maxLen) override;
+    AsyncCallbackResponse(const std::string& contentType, size_t len,
+                          AwsResponseFiller cb,
+                          AwsTemplateProcessor templateCb = nullptr);
+    void respond(AsyncWebServerRequest* req) override;
+    bool sourceValid() const override { return content_ != nullptr; }
+
 private:
-    AwsResponseFiller   content_;
-    size_t              filledLength_;
+    void pump();
+
+    AwsResponseFiller  content_;
+    size_t             filledLength_{0};
+    bool               done_{false};
 };
 
 #endif

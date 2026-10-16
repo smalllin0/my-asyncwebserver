@@ -1,18 +1,21 @@
 #ifndef ASYNCPROGMEMRESPONSE_H_
 #define ASYNCPROGMEMRESPONSE_H_
 
-#include "AsyncAbstractResponse.h"
+#include "AsyncWebServerResponse.h"
 #include <string>
 
-/// 以内部存储器为响应
-class AsyncProgmemResponse : public AsyncAbstractResponse {
+class AsyncWebServerRequest;
+
+class AsyncProgmemResponse : public AsyncWebServerResponse {
 public:
-    AsyncProgmemResponse(int code, const std::string& contentType, const uint8_t* content, size_t len, AwsTemplateProcessor callback=nullptr);
-    inline bool sourceValid() const;
-    virtual size_t fillBuffer(uint8_t* buf, size_t maxLen) override;
+    AsyncProgmemResponse(int code, const std::string& contentType,
+                         const uint8_t* content, size_t len,
+                         AwsTemplateProcessor callback = nullptr);
+    void respond(AsyncWebServerRequest* req) override;
+    bool sourceValid() const override { return content_ != nullptr; }
+
 private:
     const uint8_t*  content_;
-    size_t          readLength_;
 };
 
 #endif

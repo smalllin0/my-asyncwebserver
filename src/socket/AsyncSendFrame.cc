@@ -1,74 +1,79 @@
-#include "AsyncConnection.h"
+#include "AsyncSendFrame.h"
 #include "esp_log.h"
+#include <cstring>
+#include <cstdlib>
 
 #define TAG "SendFrame"
 
-/// @brief 构建并发送 WebSocket 帧
-/// @param client
-/// @param final 是否为最后一帧
-/// @param opcode WebSocket消息操作码
-/// @param mask 消息是否掩码保护
-/// @param data 数据指针
-/// @param len 计划发送的字节数
-/// @return 发送数据的长度
-size_t webSocketSendFrame(AsyncConnection* client, bool final, uint8_t opcode, bool mask, uint8_t* data, size_t len)
+uint8_t* webSocketMakeFrame(bool final, uint8_t opcode, bool mask,
+                            const uint8_t* data, size_t len,
+                            size_t* out_len)
 {
+    if (out_len == nullptr) return nullptr;
+    *out_len = 0;
 
-    uint8_t     head_len;
-    uint16_t    buf[4];
-    uint8_t*    pbuf = (uint8_t*)buf;
-    
-    if (len == 127) {
-        ESP_LOGE(TAG, "Max support 4GB data.");
-        return 0;
-    } else if (len == 126) {
-        head_len = mask ? 8 : 4;
-    } else {
-        head_len = mask ? 6 : 2;
+    if (len > 0xFFFFFFFF) {
+        ESP_LOGE(TAG, "Frame too large");
+        return nullptr;
     }
 
-    size_t space = client->SendBufferSize();
-    if (space >= head_len) {
+    // 计算帧头长度
+    size_t header_len;
+    bool extended16 = (len >= 126 && len < 65536);
+    bool extended64 = (len >= 65536);
 
-        auto send_len = std::min(len, space - head_len);
-        uint8_t* mask_ptr = nullptr;
+    if (extended64)      header_len = mask ? 14 : 10;
+    else if (extended16) header_len = mask ? 8  : 4;
+    else                 header_len = mask ? 6  : 2;
 
-        *pbuf = final ? (0x80 | (0x0f & opcode)) : (0x0f & opcode);
-        if (send_len < 126) {
-            if (mask) {
-                *(pbuf + 1) = 0x80 | send_len;
-                buf[1] = rand() & 0xffff;
-                buf[2] = rand() & 0xffff;
-                mask_ptr = pbuf + 2;
-            } else {
-                *(pbuf + 1) = send_len;
+    size_t total = header_len + len;
+    auto* buf = static_cast<uint8_t*>(malloc(total));
+    if (!buf) return nullptr;
+
+    uint8_t* p = buf;
+
+    // 第一个字节：FIN + opcode
+    *p++ = (final ? 0x80 : 0x00) | (opcode & 0x0f);
+
+    // 第二个字节 + 扩展长度 + 掩码密钥
+    uint8_t mask_key[4] = {0};
+    if (mask) {
+        mask_key[0] = rand() & 0xff;
+        mask_key[1] = rand() & 0xff;
+        mask_key[2] = rand() & 0xff;
+        mask_key[3] = rand() & 0xff;
+    }
+
+    if (extended64) {
+        *p++ = (mask ? 0x80 : 0x00) | 127;
+        uint64_t l = len;
+        for (int i = 7; i >= 0; --i) {
+            *p++ = (l >> (i * 8)) & 0xff;
+        }
+    } else if (extended16) {
+        *p++ = (mask ? 0x80 : 0x00) | 126;
+        *p++ = (len >> 8) & 0xff;
+        *p++ = len & 0xff;
+    } else {
+        *p++ = (mask ? 0x80 : 0x00) | static_cast<uint8_t>(len);
+    }
+
+    if (mask) {
+        memcpy(p, mask_key, 4);
+        p += 4;
+    }
+
+    // 拷贝载荷（启用掩码时逐字节异或）
+    if (len > 0) {
+        if (mask) {
+            for (size_t i = 0; i < len; ++i) {
+                *p++ = data[i] ^ mask_key[i & 0x03];
             }
         } else {
-            if (mask) {
-                *(pbuf + 1) = 0x80 | 126;
-                buf[2] = rand();
-                mask_ptr = pbuf + 4;
-            } else {
-                *(pbuf + 1) = 126;
-            }
-            *(pbuf + 2) = send_len & 0xffff;
-        }
-
-        if (client->add((const char *)buf, head_len) != head_len) {
-            return 0;
-        }
-
-        if (mask) {
-            for (size_t i = 0; i < send_len; i++) {
-                data[i] ^= mask_ptr[i & 0x03];
-            }
-        }
-
-        if (send_len == client->write((const char *)data, send_len, TCP_WRITE_FLAG_MORE)) {
-            return send_len;
+            memcpy(p, data, len);
         }
     }
 
-    return 0;
+    *out_len = total;
+    return buf;
 }
-

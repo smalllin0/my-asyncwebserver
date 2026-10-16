@@ -85,7 +85,7 @@ public:
     size_t count() const;
     AsyncWebSocketClient* client(uint16_t id);
     
-    void close(uint16_t id, uint16_t code=0, const char* message=nullptr);
+    void Close(uint16_t id, uint16_t code=0, const char* message=nullptr);
     void closeAll(uint16_t code=0, const char* message=nullptr);
     void cleanupClients(uint16_t maxClients=CONFIG_MAX_WS_CLIENTS);
 

@@ -7,31 +7,26 @@
 
 class AsyncWebServerRequest;
 
-/// @brief 派生自定义响应类型的一个抽象基类：支持动态内容生成、模板替换，并通过缓存机制实现流式、分块发送响应体。
 class AsyncAbstractResponse : public AsyncWebServerResponse {
 public:
     AsyncAbstractResponse(AwsTemplateProcessor cb = nullptr);
-    void respond(AsyncWebServerRequest* req);
-    size_t ack(AsyncWebServerRequest* req, size_t len, uint32_t time);
-    bool sourceValid() const {
-        return false;
-    }
-    virtual size_t fillBuffer(uint8_t* buf , size_t max_len ) {
-        return 0;
-    }
+    void respond(AsyncWebServerRequest* req) override;
+    bool sourceValid() const override { return false; }
+
 protected:
-    AwsTemplateProcessor    callback_;  //模板回调
-private:    
-    size_t  readDataFromCacheOrContent(uint8_t* data, const size_t len);
-    size_t  fillBufferAndProcessTemplates(uint8_t* buf, size_t max_len);
+    AwsTemplateProcessor callback_;
 
-    size_t                  headerSent_;// 响应头部已发送长度
-    std::string             header_;    // 存放组装好的响应头部
-    std::vector<uint8_t>    cache_;     // 响应数据缓存
-    std::vector<uint8_t>    buffer_;    // 用于临时保存待发送的响应体的缓冲区
+    /// @brief 从派生类读取原始数据到 buf，返回读取字节数
+    /// @note 派生类必须实现（文件/回调/生成器）
+    virtual size_t fillBuffer(uint8_t* buf, size_t max_len) = 0;
+
+private:
+    size_t readDataFromCacheOrContent(uint8_t* data, size_t len);
+    void   pump();
+    void   processTemplates(const std::vector<uint8_t>& raw, std::vector<uint8_t>& out);
+
+    std::vector<uint8_t>  cache_;
+    bool                  done_{false};
 };
-
-
-
 
 #endif

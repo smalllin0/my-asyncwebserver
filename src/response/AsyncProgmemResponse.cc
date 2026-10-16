@@ -1,28 +1,34 @@
 #include "AsyncProgmemResponse.h"
+#include "../request/AsyncWebServerRequest.h"
+#include "AsyncConnection.h"
 
-AsyncProgmemResponse::AsyncProgmemResponse(int code, const std::string &contentType, const uint8_t *content, size_t len, AwsTemplateProcessor callback)
+AsyncProgmemResponse::AsyncProgmemResponse(int code, const std::string &contentType,
+                                           const uint8_t *content, size_t len,
+                                           AwsTemplateProcessor callback)
+    : content_(content)
 {
     code_ = code;
-    content_ = content;
     contentType_ = contentType;
     contentLength_ = len;
-    readLength_ = 0;
 }
 
-inline bool AsyncProgmemResponse::sourceValid() const
+void AsyncProgmemResponse::respond(AsyncWebServerRequest* req)
 {
-    return true;
-}
+    if (state_ != RESPONSE_SETUP) return;
+    state_ = RESPONSE_CONTENT;
 
-size_t AsyncProgmemResponse::fillBuffer(uint8_t* buf, size_t maxLen)
-{
-    size_t left = contentLength_ - readLength_;
-    if (left > maxLen) {
-        memcpy(buf, content_ + readLength_, maxLen);
-        readLength_ += maxLen;
-        return maxLen;
-    }
-    memcpy(buf, content_ + readLength_, left);
-    readLength_ += left;
-    return left;
+    req_ = req;
+    client_ = req->client();
+    header_ = assembleHead(req->version());
+
+    client_->Append(header_.c_str(), header_.length(),
+                    TCP_WRITE_FLAG_COPY | TCP_WRITE_FLAG_MORE);
+    // ★ content_ 在 progmem，生命周期无限长 —— 不用 COPY
+    client_->Append(content_, contentLength_, 0);
+
+    client_->OnDrain([](void* ctx) {
+        static_cast<AsyncProgmemResponse*>(ctx)->finish();
+    }, this);
+
+    client_->Flush();
 }

@@ -124,11 +124,11 @@ AsyncWebSocketClient* AsyncWebSocket::client(uint16_t id)
 /// @param id 客户端ID
 /// @param code 关闭代码
 /// @param message 关闭消息
-void AsyncWebSocket::close(uint16_t id, uint16_t code, const char* message)
+void AsyncWebSocket::Close(uint16_t id, uint16_t code, const char* message)
 {
     AsyncWebSocketClient* c = client(id);
     if (c != nullptr) {
-        c->close(code, message);
+        c->Close(code, message);
     }
 }
 
@@ -139,7 +139,7 @@ void AsyncWebSocket::closeAll(uint16_t code, const char* message)
 {
     for (const auto &c : clients_) {
         if (c->status() == WS_CONNECTED) {
-            c->close(code, message);
+            c->Close(code, message);
         }
     }
 }
@@ -148,7 +148,7 @@ void AsyncWebSocket::closeAll(uint16_t code, const char* message)
 void AsyncWebSocket::cleanupClients(uint16_t maxClients)
 {
     if (count() > maxClients) {
-        clients_.front()->close();
+        clients_.front()->Close();
     }
 }
 
