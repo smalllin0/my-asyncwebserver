@@ -59,7 +59,7 @@ public:
     void onDisconnect(ArDisconnectHandler fn) { onDisconnectfn_ = fn; }
 
     // ---------- public 查询接口（响应类会用到） ----------
-    AsyncConnection* client()  { return client_; }
+    AsyncConnection* client()  { return conn_; }
     uint8_t          version() const { return version_; }
     WebRequestMethodComposite method() const { return method_; }
     const std::string& url()         const { return url_; }
@@ -135,8 +135,14 @@ public:
             const char* contentEncoding,      // ★ 新增参数
             AwsTemplateProcessor callback = nullptr);
 
-    // ★ 改为声明（实现在 .cc 里，那时 AsyncWebServerResponse 是完整类型）
     void finishResponse();
+
+    bool append(const void* data, size_t len, uint8_t flags = 0,
+         void(*cb)(void*, size_t) = nullptr, void* ctx = nullptr);
+    void flush();
+    void close();
+    inline void OnDrain(DrainCb cb, void* arg) { conn_->OnDrain(cb, arg); }
+
 
 private:
     friend class AsyncWebServer;
@@ -179,7 +185,7 @@ private:
     void removeNotInterestingHeaders();
 
     char*                   fileName_{nullptr};
-    AsyncConnection*        client_;
+    AsyncConnection*        conn_;
     AsyncWebServer*         server_;
     AsyncWebHandler*        handler_{nullptr};
     AsyncWebServerResponse* response_{nullptr};

@@ -1,3 +1,4 @@
+// AsyncChunkedResponse.h
 #ifndef ASYNCCHUNKEDRESPONSE_H_
 #define ASYNCCHUNKEDRESPONSE_H_
 
@@ -10,15 +11,16 @@ class AsyncChunkedResponse : public AsyncWebServerResponse {
 public:
     AsyncChunkedResponse(const std::string& contentType, AwsResponseFiller cb,
                          AwsTemplateProcessor templateCb = nullptr);
-    void respond(AsyncWebServerRequest* req) override;
+    ~AsyncChunkedResponse() override;
     bool sourceValid() const override { return content_ != nullptr; }
 
-private:
-    void pump();
+protected:
+    void pump() override;
 
+private:
     AwsResponseFiller  content_;
     size_t             filledLength_{0};
-    bool               done_{false};
+    uint8_t*           buffer_{nullptr};    //  全程复用，含帧头/帧尾
 };
 
 #endif

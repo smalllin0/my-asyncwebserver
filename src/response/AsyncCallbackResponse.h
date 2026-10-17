@@ -1,3 +1,4 @@
+// AsyncCallbackResponse.h
 #ifndef ASYNCCALLBACKRESPONSE_H_
 #define ASYNCCALLBACKRESPONSE_H_
 
@@ -11,15 +12,16 @@ public:
     AsyncCallbackResponse(const std::string& contentType, size_t len,
                           AwsResponseFiller cb,
                           AwsTemplateProcessor templateCb = nullptr);
-    void respond(AsyncWebServerRequest* req) override;
+    ~AsyncCallbackResponse() override;
     bool sourceValid() const override { return content_ != nullptr; }
 
-private:
-    void pump();
+protected:
+    void pump() override;
 
+private:
     AwsResponseFiller  content_;
     size_t             filledLength_{0};
-    bool               done_{false};
+    uint8_t*           buffer_{nullptr};    //  全程复用
 };
 
 #endif

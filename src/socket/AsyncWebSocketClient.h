@@ -51,11 +51,11 @@ public:
     AsyncWebSocketClient(AsyncWebServerRequest* req, AsyncWebSocket* server);
     ~AsyncWebSocketClient();
 
-    void closeClient() { if (client_) client_->Close(); }
+    void closeClient() { if (conn_) conn_->Close(); }
 
     uint16_t id() { return id_; }
     AwsClientStatus status() { return status_; }
-    AsyncConnection* client() { return client_; }
+    AsyncConnection* client() { return conn_; }
     AsyncWebSocket* server() { return socket_; }
     AwsFrameInfo const &pinfo() const { return pinfo_; }
     uint16_t keepAlivePeriod() { return (uint16_t)(keepAlivePeriod_ / 1000); }
@@ -99,7 +99,7 @@ private:
     void queueControl(AsyncWebSocketControl* control);
     void runQueue();                                // 按优先级发送控制帧 / 消息帧
 
-    AsyncConnection*    client_;                // 关联的连接
+    AsyncConnection*    conn_;                  // 关联的连接
     AsyncWebSocket*     socket_;                // 关联的服务器
     uint16_t            id_;                    // 客户端 ID
     AwsClientStatus     status_;                // 客户端状态

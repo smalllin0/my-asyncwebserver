@@ -1,10 +1,10 @@
+// AsyncChunkedResponse.cc
 #include "AsyncChunkedResponse.h"
 #include "../request/AsyncWebServerRequest.h"
-#include "AsyncConnection.h"
 
-AsyncChunkedResponse::AsyncChunkedResponse(const std::string &contentType,
+AsyncChunkedResponse::AsyncChunkedResponse(const std::string& contentType,
                                            AwsResponseFiller cb,
-                                           AwsTemplateProcessor templateCb)
+                                           AwsTemplateProcessor /*templateCb*/)
     : content_(cb)
 {
     code_ = 200;
@@ -14,68 +14,47 @@ AsyncChunkedResponse::AsyncChunkedResponse(const std::string &contentType,
     chunked_ = true;
 }
 
-void AsyncChunkedResponse::respond(AsyncWebServerRequest* req)
+AsyncChunkedResponse::~AsyncChunkedResponse()
 {
-    if (state_ != RESPONSE_SETUP) return;
-    if (!content_) {
-        state_ = RESPONSE_FAILED;
-        req->finishResponse();
-        return;
-    }
-
-    state_ = RESPONSE_CONTENT;
-    req_ = req;
-    client_ = req->client();
-    header_ = assembleHead(req->version());
-
-    client_->Append(header_.c_str(), header_.length(),
-                    TCP_WRITE_FLAG_COPY | TCP_WRITE_FLAG_MORE);
-
-    client_->OnDrain([](void* ctx) {
-        auto* self = static_cast<AsyncChunkedResponse*>(ctx);
-        if (self->done_) {
-            self->finish();
-        } else {
-            self->pump();
-        }
-    }, this);
-
-    pump();
+    if (buffer_) { free(buffer_); buffer_ = nullptr; }
 }
 
 void AsyncChunkedResponse::pump()
 {
-    constexpr size_t kBatchPerDrain = 4;
-    constexpr size_t kDataChunk      = 1024;
+    constexpr size_t kDataChunk = 1024;
+    if (done_) return;
 
-    for (size_t i = 0; i < kBatchPerDrain; ++i) {
-        auto* raw = static_cast<uint8_t*>(malloc(kDataChunk + 8));
-        if (!raw) break;
-
-        size_t n = content_(raw + 6, kDataChunk, filledLength_);
-        if (n == RESPONSE_TRY_AGAIN) { free(raw); break; }
-
-        if (n == 0) {
-            // 生成器结束，写终止 chunk "0\r\n\r\n"
-            free(raw);
-            auto* term = static_cast<uint8_t*>(malloc(5));
-            memcpy(term, "0\r\n\r\n", 5);
-            client_->Append(term, 5, TCP_WRITE_FLAG_MORE,
-                [](void* ctx, size_t) { free(ctx); }, term);
-            done_ = true;
-            break;
-        }
-
-        // 组装 chunked 帧：XXXX\r\n<payload>\r\n
-        sprintf(reinterpret_cast<char*>(raw), "%04x\r\n", static_cast<unsigned>(n));
-        raw[n + 6] = '\r';
-        raw[n + 7] = '\n';
-
-        bool ok = client_->Append(raw, n + 8, TCP_WRITE_FLAG_MORE,
-            [](void* ctx, size_t) { free(ctx); }, raw);
-        if (!ok) { free(raw); break; }   // ★ 失败要 break
-
-        filledLength_ += n;
+    // 一次分配：帧头 6B（XXXX\r\n）+ payload + 帧尾 2B（\r\n）
+    if (!buffer_) {
+        buffer_ = static_cast<uint8_t*>(malloc(kDataChunk + 8));
+        if (!buffer_) return;
     }
-    client_->Flush();
+
+    // payload 写在偏移 6 处
+    size_t n = content_(buffer_ + 6, kDataChunk, filledLength_);
+
+    if (n == RESPONSE_TRY_AGAIN) {
+        return;
+    }
+    if (n == 0) {
+        // 生成器结束，写终止 chunk（静态字面量，无需 buffer_）
+        static const char term[] = "0\r\n\r\n";
+        req_->append(term, 5, TCP_WRITE_FLAG_MORE);
+        done_ = true;
+        return;
+    }
+
+    // 原地组帧
+    static const char hex[] = "0123456789abcdef";
+    buffer_[0] = hex[(n >> 12) & 0xF];
+    buffer_[1] = hex[(n >>  8) & 0xF];
+    buffer_[2] = hex[(n >>  4) & 0xF];
+    buffer_[3] = hex[(n      ) & 0xF];
+    buffer_[4] = '\r';
+    buffer_[5] = '\n';
+    buffer_[n + 6] = '\r';
+    buffer_[n + 7] = '\n';
+
+    if (!req_->append(buffer_, n + 8, TCP_WRITE_FLAG_MORE)) return;
+    filledLength_ += n;
 }

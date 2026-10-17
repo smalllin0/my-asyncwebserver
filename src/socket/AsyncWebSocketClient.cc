@@ -24,8 +24,8 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest* req, AsyncWebS
     , messageQueue_(LinkedList<AsyncWebSocketMessage*>([](AsyncWebSocketMessage* m){ delete m; }))
 {
     // 接管底层连接（AsyncWebSocketClient 是 AsyncWebServerRequest 的友元）
-    client_ = req->client_;
-    req->client_ = nullptr;         // 断开 request 对连接的引用
+    conn_ = req->conn_;
+    req->conn_ = nullptr;         // 断开 request 对连接的引用
 
     socket_ = socket;
     id_ = socket_->getNextId();
@@ -34,27 +34,27 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest* req, AsyncWebS
     lastMessageTime_ = SystemInfo::GetMsSinceStart();
     keepAlivePeriod_ = 0;
 
-    client_->SetRxTimeout(0);
+    conn_->SetRxTimeout(0);
 
     // 数据到达
-    client_->OnData([](void* ctx, void* buf, size_t len) {
+    conn_->OnData([](void* ctx, void* buf, size_t len) {
         static_cast<AsyncWebSocketClient*>(ctx)->onData(buf, len);
     }, this);
 
     // 错误
-    client_->OnError([](void* ctx, int8_t error) {
+    conn_->OnError([](void* ctx, int8_t error) {
         auto* self = static_cast<AsyncWebSocketClient*>(ctx);
         ESP_LOGE(TAG, "Client error: id=%u, error=%d", self->id_, error);
         self->socket_->handleEvent(self, WS_EVT_ERROR, &error, nullptr, 0);
     }, this);
 
     // 周期轮询（驱动队列 + 心跳）
-    client_->OnPoll([](void* ctx) {
+    conn_->OnPoll([](void* ctx) {
         static_cast<AsyncWebSocketClient*>(ctx)->onPoll();
     }, this);
 
     // 回收前清理：通知 socket 移除自己
-    client_->OnRelease([](void* ctx) {
+    conn_->OnRelease([](void* ctx) {
         auto* self = static_cast<AsyncWebSocketClient*>(ctx);
         self->socket_->cleanClient(self);
         delete self;                                // AsyncConnection 回收时销毁 WebSocketClient
@@ -73,12 +73,12 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest* req, AsyncWebS
 
 AsyncWebSocketClient::~AsyncWebSocketClient()
 {
-    if (client_) {
+    if (conn_) {
         // 清空所有回调，防止 disconnect 后收到事件
-        client_->OnData(nullptr, nullptr);
-        client_->OnError(nullptr, nullptr);
-        client_->OnPoll(nullptr, nullptr);
-        client_->OnRelease(nullptr, nullptr);
+        conn_->OnData(nullptr, nullptr);
+        conn_->OnError(nullptr, nullptr);
+        conn_->OnPoll(nullptr, nullptr);
+        conn_->OnRelease(nullptr, nullptr);
     }
     socket_->handleEvent(this, WS_EVT_DISCONNECT, nullptr, nullptr, 0);
     messageQueue_.free();
@@ -141,7 +141,7 @@ void AsyncWebSocketClient::runQueue()
         && (messageQueue_.isEmpty() || messageQueue_.front()->betweenFrames()))
     {
         auto* ctrl = controlQueue_.front();
-        if (ctrl->send(client_) > 0) {
+        if (ctrl->send(conn_) > 0) {
             // 成功入队，从队列移除
             // 特殊：如果状态是 WS_DISCONNECTING 且刚发了 DISCONNECT，让发送完成后再改状态
             if (status_ == WS_DISCONNECTING && ctrl->opcode() == WS_DISCONNECT) {
@@ -154,7 +154,7 @@ void AsyncWebSocketClient::runQueue()
 
     // ---- 消息帧 ----
     if (!messageQueue_.isEmpty() && messageQueue_.front()->betweenFrames()) {
-        messageQueue_.front()->send(client_);
+        messageQueue_.front()->send(conn_);
     }
 }
 
@@ -273,7 +273,7 @@ inline void AsyncWebSocketClient::onData(void* pbuf, size_t buf_len)
                     }
                     if (tmp[0]) {
                         ESP_LOGE(TAG, "Unsupported 64bit length, closing socket.");
-                        client_->Close();
+                        conn_->Close();
                     } else {
                         pinfo_.len = ntohl(tmp[1]);
                     }
@@ -328,7 +328,7 @@ inline void AsyncWebSocketClient::onData(void* pbuf, size_t buf_len)
                     }
                     if (status_ == WS_DISCONNECTING) {
                         status_ = WS_DISCONNECTED;
-                        if (client_) client_->Close();
+                        if (conn_) conn_->Close();
                     } else {
                         status_ = WS_DISCONNECTING;
                         queueControl(new AsyncWebSocketControl(WS_DISCONNECT, data, data_len));
@@ -410,13 +410,13 @@ inline bool AsyncWebSocketClient::queueIsFull()
 
 ip_addr_t AsyncWebSocketClient::remoteIP()
 {
-    if (client_ == nullptr) {
+    if (conn_ == nullptr) {
         return IPADDR4_INIT(0);
     }
-    return client_->GetRemouteIp();
+    return conn_->GetRemouteIp();
 }
 
 uint16_t AsyncWebSocketClient::remotePort()
 {
-    return client_ == nullptr ? 0 : client_->GetRemotePort();
+    return conn_ == nullptr ? 0 : conn_->GetRemotePort();
 }

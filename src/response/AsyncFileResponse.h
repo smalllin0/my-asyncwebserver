@@ -1,3 +1,4 @@
+// AsyncFileResponse.h
 #ifndef ASYNCFILERESPONSE_H_
 #define ASYNCFILERESPONSE_H_
 
@@ -11,17 +12,19 @@ class AsyncFileResponse : public AsyncWebServerResponse {
 public:
     AsyncFileResponse(std::string path, std::string contentType = empty_string,
                       bool download = false, AwsTemplateProcessor cb = nullptr);
-    ~AsyncFileResponse();
-    void respond(AsyncWebServerRequest* req) override;
+    ~AsyncFileResponse() override;
     bool sourceValid() const override { return file_ != nullptr; }
+
+protected:
+    void pump() override;
 
 private:
     void setContentType(const std::string& path);
-    void pump();
 
     FILE*           file_{nullptr};
     std::string     path_;
     size_t          readLength_{0};
+    uint8_t*        buffer_{nullptr};    //  全程复用
 };
 
 #endif

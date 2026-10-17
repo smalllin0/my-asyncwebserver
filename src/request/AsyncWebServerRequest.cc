@@ -56,9 +56,9 @@ AsyncWebServerRequest::AsyncWebServerRequest()
     , pathParams_(LinkedList<std::string*>([](std::string* path){ delete path; }))
 { }
 
-void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncConnection* client)
+void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncConnection* conn)
 {
-    client_     = client;
+    conn_     = conn;
     server_     = server;
     handler_    = nullptr;
     response_   = nullptr;
@@ -98,13 +98,13 @@ void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncConnection* client
     itemValue_          = empty_string;
 
     // 数据到达
-    client->OnData([](void* ctx, void* data, size_t len) {
+    conn->OnData([](void* ctx, void* data, size_t len) {
         auto* req = reinterpret_cast<AsyncWebServerRequest*>(ctx);
         req->onData((void*)data, len);
     }, this);
 
     // 错误
-    client->OnError([](void* r, int8_t err) {
+    conn->OnError([](void* r, int8_t err) {
         auto* req = reinterpret_cast<AsyncWebServerRequest*>(r);
         req->onErr(err);
     }, this);
@@ -112,13 +112,13 @@ void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncConnection* client
     // ★ 删除 OnSent 注册 —— 新模型下响应推进由 OnDrain 驱动
 
     // 周期轮询
-    client->OnPoll([](void* r) {
+    conn->OnPoll([](void* r) {
         auto* req = reinterpret_cast<AsyncWebServerRequest*>(r);
         req->onPoll();
     }, this);
 
     // 回收前清理
-    client->OnRelease([](void* arg) {
+    conn->OnRelease([](void* arg) {
         auto* req = (AsyncWebServerRequest*)arg;
         req->onDisconnect();
         req->reset();
@@ -231,7 +231,7 @@ void AsyncWebServerRequest::parseLine(char* start, char* end)
     if (parseState_ == PARSE_REQ_START) {
         if (is_empty_line) {
             parseState_ = PARSE_REQ_FAIL;
-            client_->Close();
+            conn_->Close();
             ESP_LOGE(TAG, "解析失败: 请求行为空.");
         } else {
             parseReqLine(start, end);
@@ -250,9 +250,8 @@ void AsyncWebServerRequest::parseLine(char* start, char* end)
 
             if (expectingContinue_) {
                 static const char* response = "HTTP/1.1 100 Continue\r\n\r\n";
-                client_->Append((void*)response, strlen(response),
-                                TCP_WRITE_FLAG_MORE | TCP_WRITE_FLAG_COPY);
-                client_->Flush();
+                conn_->Append((void*)response, strlen(response), TCP_WRITE_FLAG_MORE);
+                conn_->Flush();
             }
             if (contentLength_) {
                 parseState_ = PARSE_REQ_BODY;
@@ -797,13 +796,13 @@ void AsyncWebServerRequest::send(AsyncWebServerResponse* response)
 {
     response_ = response;
     if (response_ == nullptr) {
-        client_->Close();
+        conn_->Close();
         onDisconnectfn_();
         return;
     }
 
     if (response_->sourceValid()) {
-        client_->SetRxTimeout(0);
+        conn_->SetRxTimeout(0);
         response_->respond(this);
     } else {
         delete response_;
@@ -1004,8 +1003,8 @@ void AsyncWebServerRequest::send_P(int code, std::string contentType,
 /// @note 必须在 OnDrain 触发后调用（此时 SendPool 已空）
 void AsyncWebServerRequest::finishResponse()
 {
-    if (client_) {
-        client_->OnDrain(nullptr, nullptr);   // ★ 先清 drain 回调，防止悬空
+    if (conn_) {
+        conn_->OnDrain(nullptr, nullptr);   // ★ 先清 drain 回调，防止悬空
     }
     auto* r = response_;
     response_ = nullptr;
@@ -1014,7 +1013,21 @@ void AsyncWebServerRequest::finishResponse()
     }
 }
 
+bool AsyncWebServerRequest::append(const void* data, size_t len, uint8_t flags,
+     void(*cb)(void*, size_t), void* ctx)
+{
+    return conn_ && conn_->Append(data, len, flags, cb, ctx);
+}
 
+void AsyncWebServerRequest::flush()
+{
+    if (conn_) conn_->Flush();
+}
+
+void AsyncWebServerRequest::close()
+{
+    if (conn_) conn_->Close();
+}
 
 
 

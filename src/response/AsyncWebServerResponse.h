@@ -45,15 +45,9 @@ public:
     AsyncWebServerResponse(uint16_t code = 0, const std::string& contentType = empty_string);
     virtual ~AsyncWebServerResponse();
 
-    virtual void setCode(uint16_t code) {
-        if (state_ == RESPONSE_SETUP) code_ = code;
-    }
-    virtual void setContentLength(size_t len) {
-        if (state_ == RESPONSE_SETUP) contentLength_ = len;
-    }
-    virtual void setContentType(const std::string &type) {
-        if (state_ == RESPONSE_SETUP) contentType_ = type;
-    }
+    virtual void setCode(uint16_t code) { if (state_ == RESPONSE_SETUP) code_ = code; }
+    virtual void setContentLength(size_t len) { if (state_ == RESPONSE_SETUP) contentLength_ = len; }
+    virtual void setContentType(const std::string &type) { if (state_ == RESPONSE_SETUP) contentType_ = type; }
     virtual void addHeader(std::string name, std::string value);
     virtual std::string assembleHead(uint8_t version);
 
@@ -62,18 +56,21 @@ public:
     virtual bool failed()   const { return state_ == RESPONSE_FAILED; }
     virtual bool sourceValid() const { return false; }
 
-    virtual void respond(AsyncWebServerRequest* req);
+    // 固定骨架，子类不能再 override
+    virtual void respond(AsyncWebServerRequest* req) final;
 
-    /// @brief 保留兼容老代码的空实现，新模型下不再被调用
-    virtual size_t ack(AsyncWebServerRequest* req, size_t len, uint32_t time) {
-        return 0;
-    }
-
-    /// @brief response 完成，通知 request 删除自己
-    /// @note 只在 OnDrain 里调用（此时 SendPool 已空）
+    // 完成时由 response 主动通知 request 回收自己
     void finish();
 
 protected:
+    // 默认实现：header → OnDrain → pump → flush
+    // 特殊子类（WebSocket）override
+    virtual void doRespond();
+
+    // 子类的唯一行为钩子：每次仅追加一块数据；完成时置 done_ = true
+    // 默认：无 body
+    virtual void pump() { done_ = true; }
+
     const char* responseCodeToString(uint16_t code);
 
     bool    sendContentLength_;
@@ -85,10 +82,9 @@ protected:
     std::string contentType_;
     LinkedList<AsyncWebHeader*> headers_;
 
-    // ★ 基类统一持有的上下文
     AsyncWebServerRequest* req_{nullptr};
-    AsyncConnection*       client_{nullptr};
     std::string            header_;
+    bool                   done_{false};
 };
 
 #endif

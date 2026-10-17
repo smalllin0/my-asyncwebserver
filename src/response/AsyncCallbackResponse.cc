@@ -1,10 +1,10 @@
+// AsyncCallbackResponse.cc
 #include "AsyncCallbackResponse.h"
 #include "../request/AsyncWebServerRequest.h"
-#include "AsyncConnection.h"
 
 AsyncCallbackResponse::AsyncCallbackResponse(const std::string& contentType, size_t len,
                                              AwsResponseFiller cb,
-                                             AwsTemplateProcessor templateCb)
+                                             AwsTemplateProcessor /*templateCb*/)
     : content_(cb)
 {
     code_ = 200;
@@ -15,59 +15,38 @@ AsyncCallbackResponse::AsyncCallbackResponse(const std::string& contentType, siz
     contentType_ = contentType;
 }
 
-void AsyncCallbackResponse::respond(AsyncWebServerRequest* req)
+AsyncCallbackResponse::~AsyncCallbackResponse()
 {
-    if (state_ != RESPONSE_SETUP) return;
-    if (!content_) {
-        state_ = RESPONSE_FAILED;
-        req->finishResponse();
-        return;
-    }
-
-    state_ = RESPONSE_CONTENT;
-    req_ = req;
-    client_ = req->client();
-    header_ = assembleHead(req->version());
-
-    client_->Append(header_.c_str(), header_.length(),
-                    TCP_WRITE_FLAG_COPY | TCP_WRITE_FLAG_MORE);
-
-    client_->OnDrain([](void* ctx) {
-        auto* self = static_cast<AsyncCallbackResponse*>(ctx);
-        if (self->done_) {
-            self->finish();
-        } else {
-            self->pump();
-        }
-    }, this);
-
-    pump();
+    if (buffer_) { free(buffer_); buffer_ = nullptr; }
 }
 
 void AsyncCallbackResponse::pump()
 {
-    constexpr size_t kBatchPerDrain = 4;
-    constexpr size_t kDataChunk      = 1460;
+    constexpr size_t kDataChunk = 1460;
+    if (done_) return;
 
-    for (size_t i = 0; i < kBatchPerDrain; ++i) {
-        auto* buf = static_cast<uint8_t*>(malloc(kDataChunk));
-        if (!buf) break;
-
-        size_t n = content_(buf, kDataChunk, filledLength_);
-        if (n == RESPONSE_TRY_AGAIN) { free(buf); break; }
-        if (n == 0) {
-            free(buf);
-            done_ = true;
-            break;
-        }
-
-        uint8_t flags = (i == kBatchPerDrain - 1) ? 0 : TCP_WRITE_FLAG_MORE;
-
-        bool ok = client_->Append(buf, n, flags,
-            [](void* ctx, size_t) { free(ctx); }, buf);
-        if (!ok) { free(buf); break; }
-
-        filledLength_ += n;
+    // 首次分配，之后复用 —— 每次 append 后被 OnDrain 回调驱动，
+    // 触发时上一块已发送完毕，buffer_ 可安全覆盖
+    if (!buffer_) {
+        buffer_ = static_cast<uint8_t*>(malloc(kDataChunk));
+        if (!buffer_) return;
     }
-    client_->Flush();
+
+    size_t n = content_(buffer_, kDataChunk, filledLength_);
+
+    if (n == RESPONSE_TRY_AGAIN) {
+        return;                              // 数据未就绪，下次 drain 重试
+    }
+    if (n == 0) {
+        done_ = true;                        // 结束
+        return;
+    }
+
+    bool isLast = (sendContentLength_ && contentLength_ &&
+                   filledLength_ + n >= contentLength_);
+    uint8_t flags = isLast ? 0 : TCP_WRITE_FLAG_MORE;
+
+    if (!req_->append(buffer_, n, flags)) return;   // 提交失败，下轮重试
+    filledLength_ += n;
+    if (isLast) done_ = true;
 }

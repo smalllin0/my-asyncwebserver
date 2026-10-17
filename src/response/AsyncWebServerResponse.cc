@@ -2,16 +2,15 @@
 #include "../header/AsyncWebHeader.h"
 #include "../header/DefaultHeaders.h"
 #include "../request/AsyncWebServerRequest.h"
-#include "AsyncConnection.h"
 
 const char * WS_STR_CONNECTION = "Connection";
-const char * WS_STR_UPGRADE = "Upgrade";
-const char * WS_STR_ORIGIN = "Origin";
-const char * WS_STR_VERSION = "Sec-WebSocket-Version";
-const char * WS_STR_KEY = "Sec-WebSocket-Key";
-const char * WS_STR_PROTOCOL = "Sec-WebSocket-Protocol";
-const char * WS_STR_ACCEPT = "Sec-WebSocket-Accept";
-const char * WS_STR_UUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+const char * WS_STR_UPGRADE    = "Upgrade";
+const char * WS_STR_ORIGIN     = "Origin";
+const char * WS_STR_VERSION    = "Sec-WebSocket-Version";
+const char * WS_STR_KEY        = "Sec-WebSocket-Key";
+const char * WS_STR_PROTOCOL   = "Sec-WebSocket-Protocol";
+const char * WS_STR_ACCEPT     = "Sec-WebSocket-Accept";
+const char * WS_STR_UUID       = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 AsyncWebServerResponse::AsyncWebServerResponse(uint16_t code, const std::string& contentType)
     : sendContentLength_(true)
@@ -79,24 +78,49 @@ void AsyncWebServerResponse::addHeader(std::string name, std::string value) {
     headers_.add(new AsyncWebHeader(std::move(name), std::move(value)));
 }
 
-void AsyncWebServerResponse::respond(AsyncWebServerRequest* req) {
-    state_ = RESPONSE_END;
-    req->client()->Close();
+void AsyncWebServerResponse::respond(AsyncWebServerRequest* req)
+{
+    if (state_ != RESPONSE_SETUP) return;
+    if (!sourceValid()) {
+        state_ = RESPONSE_FAILED;
+        req->finishResponse();
+        return;
+    }
+
+    req_    = req;
+    header_ = assembleHead(req->version());
+    state_  = RESPONSE_CONTENT;
+
+    doRespond();
+}
+
+void AsyncWebServerResponse::doRespond()
+{
+    // header 用 MORE，body 由 pump() 填充
+    req_->append(header_.c_str(), header_.length(), TCP_WRITE_FLAG_MORE);
+
+    req_->OnDrain([](void* ctx) {
+        auto* resp = static_cast<AsyncWebServerResponse*>(ctx);
+        if (resp->done_) {
+            resp->finish();
+        } else {
+            resp->pump();              //  只追加一块
+            resp->req_->flush();       //  必须再推一次
+        }
+    }, this);
+
+    pump();
+    req_->flush();
 }
 
 void AsyncWebServerResponse::finish()
 {
     auto* r = req_;
     req_ = nullptr;
-
-    // ★ 先主动关闭底层连接（发 FIN）
-    //   必须在删 response 之前，因为 close 需要 client_ 有效
-    if (client_) {
-        client_->Close();       
+    if (r) {
+        r->close();          // 关闭底层连接
+        r->finishResponse(); // 通知 request 删除自己
     }
-
-    // ★ 再通知 request 删除自己
-    if (r) r->finishResponse();
 }
 
 const char* AsyncWebServerResponse::responseCodeToString(uint16_t code)
@@ -145,3 +169,4 @@ const char* AsyncWebServerResponse::responseCodeToString(uint16_t code)
       default:  return "Invalid code.";
     }
 }
+

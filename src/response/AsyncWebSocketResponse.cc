@@ -1,8 +1,8 @@
+// AsyncWebSocketResponse.cc
 #include "AsyncWebSocketResponse.h"
 #include "mbedtls/base64.h"
 #include "psa/crypto.h"
 #include "../request/AsyncWebServerRequest.h"
-#include "AsyncConnection.h"
 #include "../socket/AsyncWebSocketClient.h"
 
 AsyncWebSocketResponse::AsyncWebSocketResponse(const std::string& key, AsyncWebSocket* socket)
@@ -19,10 +19,9 @@ AsyncWebSocketResponse::AsyncWebSocketResponse(const std::string& key, AsyncWebS
 
     std::string k = key + WS_STR_UUID;
 
-    psa_algorithm_t alg = PSA_ALG_SHA_1;
     size_t actual_len = 0;
     auto status = psa_hash_compute(
-        alg,
+        PSA_ALG_SHA_1,
         reinterpret_cast<const uint8_t*>(k.data()),
         k.size(),
         hash, 20, &actual_len);
@@ -50,27 +49,23 @@ AsyncWebSocketResponse::AsyncWebSocketResponse(const std::string& key, AsyncWebS
     delete[] buffer;
 }
 
-void AsyncWebSocketResponse::respond(AsyncWebServerRequest* req)
+void AsyncWebSocketResponse::doRespond()
 {
     if (state_ == RESPONSE_FAILED) {
-        req->client()->Close();
+        req_->close();
         return;
     }
 
     state_ = RESPONSE_WAIT_ACK;
-    req_ = req;
-    client_ = req->client();
-    header_ = assembleHead(req->version());
+    req_->append(header_.c_str(), header_.length(), TCP_WRITE_FLAG_COPY);
 
-    client_->Append(header_.c_str(), header_.length(), TCP_WRITE_FLAG_COPY);
-
-    client_->OnDrain([](void* ctx) {
+    req_->OnDrain([](void* ctx) {
         auto* self = static_cast<AsyncWebSocketResponse*>(ctx);
-        self->client_->OnDrain(nullptr, nullptr);        // 清回调
+        self->req_->OnDrain(nullptr, nullptr);      // 清回调，转入 WebSocketClient
         new AsyncWebSocketClient(self->req_, self->socket_);
         self->state_ = RESPONSE_END;
-        // ★ 不 finish —— WebSocket 长连接，response 保留
+        // ★ 不 finish：WebSocket 长连接，response 由 request 生命周期持有
     }, this);
 
-    client_->Flush();
+    req_->flush();
 }
