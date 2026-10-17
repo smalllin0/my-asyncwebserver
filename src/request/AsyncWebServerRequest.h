@@ -7,6 +7,7 @@
 #include "lwip/err.h"
 #include "../handler/AsyncStaticWebHandler.h"
 #include "AsyncConnection.h"
+#include "PoolNode.h"
 
 class AsyncConnection;
 class AsyncWebServer;
@@ -48,7 +49,10 @@ enum RequestedConnectionType {
 
 using AwsResponseFiller = std::function<size_t(uint8_t* buffer, size_t maxLen, size_t index)>;
 
-class AsyncWebServerRequest {
+template<typename T, uint32_t IdleSec>
+class ObjPool;
+
+class AsyncWebServerRequest : public PoolNode<AsyncWebServerRequest> {
 public:
     AsyncWebServerRequest();
 
@@ -147,6 +151,8 @@ private:
     friend class AsyncWebSocketResponse;
     friend class AsyncWebSocketClient;
     friend class AsyncWebSocket;
+    template<typename T, uint32_t IdleSec>
+    friend class ObjPool;
 
     ~AsyncWebServerRequest() { reset(); }
 
@@ -173,7 +179,6 @@ private:
     void removeNotInterestingHeaders();
 
     char*                   fileName_{nullptr};
-    AsyncWebServerRequest*  next_;
     AsyncConnection*        client_;
     AsyncWebServer*         server_;
     AsyncWebHandler*        handler_{nullptr};

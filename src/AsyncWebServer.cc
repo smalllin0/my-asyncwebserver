@@ -1,4 +1,5 @@
 #include "AsyncWebServer.h"
+#include "../src/request/RequestPool.h"
 #include "../src/request/AsyncWebServerRequest.h"
 #include "../src/rewrite/AsyncWebRewrite.h"
 #include "../src/handler/AsyncWebHandler.h"
@@ -6,6 +7,7 @@
 #include <atomic>
 
 #define TAG "AsyncWebServer"
+
 
 AsyncWebServer::AsyncWebServer(uint16_t port)
     : server_(IPADDR4_INIT(0), port)
@@ -24,30 +26,14 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
             auto* self = reinterpret_cast<AsyncWebServer*>(server);
 
             client->SetRxTimeout(3);
-            auto* req = self->allocateRequest(client);
-            if (req == nullptr) {
-                client->Close();
-            }
+            auto* req = RequestPool::GetInstance().Acquire();
+            if (!req) client->Close();
+            req->init(self, client);
         },
         this
     );
-    server_.OnCleanup([](void* ctx){
-        auto* self = reinterpret_cast<AsyncWebServer*>(ctx);
-        auto* head = self->pool_.exchange(nullptr);
-        if (head != nullptr) {
-            auto* current = head->next_;
-            while (current) {
-                auto* next = current->next_;
-                delete current;
-                current = next;
-            }
-            head->next_ = nullptr;
-            self->recycleRequest(head);
-        }}, 
-        this
-    );
-    
-    recycleRequest(new AsyncWebServerRequest());
+   
+    RequestPool::GetInstance();
 }
 
 AsyncWebServer::~AsyncWebServer()
@@ -56,14 +42,6 @@ AsyncWebServer::~AsyncWebServer()
     end();
     if (defaultHandler_) {
         delete defaultHandler_;
-    }
-    auto* current = pool_.exchange(nullptr);
-    if (current != nullptr) {
-        while (current) {
-            auto* next = current->next_;
-            delete current;
-            current = next;
-        }
     }
 }
 
@@ -220,31 +198,4 @@ void AsyncWebServer::internalHandleDisconnect(AsyncWebServerRequest* req)
     if (req != nullptr) {
         req->client()->Close();
     }
-}
-
-
-AsyncWebServerRequest* AsyncWebServer::allocateRequest(AsyncConnection* client)
-{
-    AsyncWebServerRequest* req;
-    AsyncWebServerRequest* expected;
-    do {
-        expected = pool_.load();
-        if (!expected) {
-            req = new AsyncWebServerRequest();
-            break;
-        }
-        req = expected;
-    } while (!pool_.compare_exchange_weak(expected, req->next_));
-
-    req->init(this, client);
-    return req;
-}
-
-void AsyncWebServer::recycleRequest(AsyncWebServerRequest* req) {
-    req->reset();
-    AsyncWebServerRequest* expected;
-    do {
-        expected = pool_.load();
-        req->next_ = expected;
-    } while (!pool_.compare_exchange_weak(expected, req));
 }

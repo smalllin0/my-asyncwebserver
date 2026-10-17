@@ -40,9 +40,7 @@ public:
             defaultHandler_->onBody(nullptr);
         }
         server_.OnAccept(nullptr, nullptr);
-        server_.OnCleanup(nullptr, nullptr);
     }
-    void recycleRequest(AsyncWebServerRequest* req);
 
     AsyncWebRewrite& addRewrite(AsyncWebRewrite* rewrite);
     bool removeRewrite(AsyncWebRewrite* rewrite);
@@ -66,7 +64,6 @@ public:
 protected:
     friend class AsyncWebServerRequest;
 
-    AsyncWebServerRequest* allocateRequest(AsyncConnection* client);
     void internalHandleDisconnect(AsyncWebServerRequest* req);
     void internalAttachHandler(AsyncWebServerRequest* req);
     void internalRewriteRequest(AsyncWebServerRequest* req);
@@ -75,7 +72,6 @@ protected:
     LinkedList<AsyncWebRewrite*>    rewrites_;          // URL重写规则链
     LinkedList<AsyncWebHandler*>    handlers_;          // 处理器链
     AsyncCallbackWebHandler*        defaultHandler_;    // 默认处理器（处理未被处理器链匹配项）
-    std::atomic<AsyncWebServerRequest*> pool_{nullptr}; // 请求池 
 };
 
 #endif

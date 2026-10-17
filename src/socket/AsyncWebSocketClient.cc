@@ -2,6 +2,7 @@
 // 文件：AsyncWebSocketClient.cc
 // =============================================================
 #include "AsyncWebSocketClient.h"
+#include "../request/RequestPool.h"
 #include "../request/AsyncWebServerRequest.h"
 #include "AsyncWebSocket.h"
 #include "AsyncWebServer.h"
@@ -66,7 +67,8 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest* req, AsyncWebS
     socket_->handleEvent(this, WS_EVT_CONNECT, req, nullptr, 0);
 
     // request 已交给 WebSocket 接管，回收它
-    req->server_->recycleRequest(req);
+    req->reset();
+    RequestPool::GetInstance().Release(req);
 }
 
 AsyncWebSocketClient::~AsyncWebSocketClient()

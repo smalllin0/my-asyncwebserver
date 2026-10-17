@@ -2,6 +2,7 @@
 // =============================================================
 // 文件：AsyncWebServerRequest.cc
 // =============================================================
+#include "RequestPool.h"
 #include "AsyncWebServerRequest.h"
 #include <esp_log.h>
 #include "AsyncWebServer.h"
@@ -57,7 +58,6 @@ AsyncWebServerRequest::AsyncWebServerRequest()
 
 void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncConnection* client)
 {
-    next_       = nullptr;
     client_     = client;
     server_     = server;
     handler_    = nullptr;
@@ -121,7 +121,8 @@ void AsyncWebServerRequest::init(AsyncWebServer* server, AsyncConnection* client
     client->OnRelease([](void* arg) {
         auto* req = (AsyncWebServerRequest*)arg;
         req->onDisconnect();
-        req->server_->recycleRequest(req);
+        req->reset();
+        RequestPool::GetInstance().Release(req);
     }, this);
 }
 
