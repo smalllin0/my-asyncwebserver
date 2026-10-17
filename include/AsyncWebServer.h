@@ -17,7 +17,15 @@ class AsyncStaticWebHandler;
 class AsyncCallbackWebHandler;
 class AsyncResponseStream;
 
-extern const char page404[] asm("_binary_404_html_start");
+// 二进制/文本文件嵌入（gzip 版 404 页面）
+extern const char page404_gz[]     asm("_binary_404_html_gz_start");
+extern const char page404_gz_end[] asm("_binary_404_html_gz_end");
+
+// 长度用函数而不是变量：跨 TU 只有一个定义，且零开销
+inline size_t page404_gz_len() {
+    return static_cast<size_t>(page404_gz_end - page404_gz);
+}
+
 
 class AsyncWebServer {
 public:
